@@ -1,0 +1,218 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+    --primary: 0 0% 9%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+    --accent: 0 0% 96.1%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 0 0% 3.9%;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --radius: 0.5rem;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Role-specific theme colors */
+    --client-primary: 215 90% 50%;
+    --client-primary-foreground: 0 0% 98%;
+    --client-accent: 210 80% 95%;
+    --client-accent-foreground: 215 90% 30%;
+    
+    --owner-primary: 130 50% 40%;
+    --owner-primary-foreground: 0 0% 98%;
+    --owner-accent: 130 60% 95%;
+    --owner-accent-foreground: 130 50% 25%;
+    
+    --admin-primary: 350 80% 45%;
+    --admin-primary-foreground: 0 0% 98%;
+    --admin-accent: 350 80% 95%;
+    --admin-accent-foreground: 350 80% 30%;
+
+    /* Brand elements */
+    --brand-accent: 350 80% 50%;
+    --brand-accent-light: 350 80% 95%;
+    --brand-accent-dark: 350 80% 40%;
+    
+    /* Shadow variables */
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.08);
+    --shadow-lg: 0 10px 15px rgba(0,0,0,0.04), 0 4px 6px rgba(0,0,0,0.08);
+  }
+  
+  .dark {
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 33% 17%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 224 76% 48%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 224 76% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 217 33% 17%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 33% 17%;
+    --sidebar-ring: 224 76% 48%;
+
+    /* Role-specific theme colors */
+    --client-primary: 215 70% 60%;
+    --client-primary-foreground: 0 0% 100%;
+    --client-accent: 215 70% 20%;
+    --client-accent-foreground: 215 70% 95%;
+    
+    --owner-primary: 142 70% 45%;
+    --owner-primary-foreground: 0 0% 100%;
+    --owner-accent: 142 70% 20%;
+    --owner-accent-foreground: 142 70% 95%;
+    
+    --admin-primary: 350 70% 50%;
+    --admin-primary-foreground: 0 0% 100%;
+    --admin-accent: 350 70% 25%;
+    --admin-accent-foreground: 350 70% 95%;
+  }
+}
+
+/* Role-specific theme application */
+.client-theme {
+  --primary: var(--client-primary);
+  --primary-foreground: var(--client-primary-foreground);
+  --accent: var(--client-accent);
+  --accent-foreground: var(--client-accent-foreground);
+}
+
+.owner-theme {
+  --primary: var(--owner-primary);
+  --primary-foreground: var(--owner-primary-foreground);
+  --accent: var(--owner-accent);
+  --accent-foreground: var(--owner-accent-foreground);
+}
+
+.admin-theme {
+  --primary: var(--admin-primary);
+  --primary-foreground: var(--admin-primary-foreground);
+  --accent: var(--admin-accent);
+  --accent-foreground: var(--admin-accent-foreground);
+}
+
+/* Role badge styles */
+.role-badge {
+  @apply px-2 py-0.5 text-xs font-medium rounded-full;
+}
+
+.role-badge-client {
+  @apply bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200;
+}
+
+.role-badge-owner {
+  @apply bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200;
+}
+
+.role-badge-admin {
+  @apply bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200;
+}
+
+.role-badge-superadmin {
+  @apply bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200;
+}
+
+/* Spacing utilities */
+.section {
+  @apply py-12;
+}
+
+.section-sm {
+  @apply py-6;
+}
+
+.container-sm {
+  @apply max-w-3xl mx-auto px-4;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Mobile navigation styles */
+.fixed.bottom-0.left-0.right-0.z-50.flex.md\\:hidden {
+  @apply bg-background border-t border-border;
+}
+
+/* Fix dark mode backgrounds for UI components */
+.dark .bg-gray-50 {
+  @apply bg-gray-900;
+}
+
+.dark .bg-gray-100 {
+  @apply bg-gray-800;
+}
+
+.dark .bg-gray-200 {
+  @apply bg-gray-700;
+}
+
+.dark .shadow-sm,
+.dark .shadow,
+.dark .shadow-md,
+.dark .shadow-lg {
+  --tw-shadow-color: rgba(0, 0, 0, 0.3);
+}
