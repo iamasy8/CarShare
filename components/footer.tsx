@@ -143,13 +143,6 @@ export function Footer() {
         {/* Copyright */}
         <div className="flex flex-col md:flex-row justify-between items-center text-gray-400 text-sm">
           <p>© {new Date().getFullYear()} CarShare. Tous droits réservés.</p>
-          <Button
-            asChild
-            variant="link"
-            className="text-gray-400 hover:text-white p-0 h-auto mt-2 md:mt-0"
-          >
-            <Link href="/sitemap">Sitemap</Link>
-          </Button>
         </div>
       </div>
     </footer>
