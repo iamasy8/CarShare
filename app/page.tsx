@@ -5,51 +5,58 @@ import FeaturedCars from "@/components/featured-cars"
 import HowItWorks from "@/components/how-it-works"
 import { Testimonials } from "@/components/testimonials"
 import { cn } from "@/lib/utils"
+import HeroCarousel from "@/components/hero-carousel"
+import AnimatedText from "@/components/animated-text"
 
 export default function Home() {
   return (
     <div className="flex flex-col min-h-screen">
       {/* Hero Section */}
-      <section className="relative py-20 md:py-32 bg-gradient-to-br from-red-600 to-red-800 text-white">
-        <div className="container px-4 md:px-6 mx-auto">
+      <section className="relative py-20 md:py-32 bg-gradient-to-br from-red-600 to-red-800 text-white overflow-hidden">
+        {/* Background gradient overlay for the image */}
+        <div className="absolute inset-0 bg-gradient-to-r from-red-600/90 to-red-800/70 z-0"></div>
+        
+        <div className="container px-4 md:px-6 mx-auto relative z-10">
           <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 items-center">
             <div className="flex flex-col justify-center space-y-4">
               <div className="space-y-2">
-                <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none">
-                  Louez une voiture directement auprès des propriétaires
-                </h1>
-                <p className="max-w-[600px] text-white/80 md:text-xl">
-                  CarShare vous connecte avec des propriétaires de voitures près de chez vous. Trouvez le véhicule idéal
-                  pour vos besoins sans intermédiaire.
-                </p>
+                <AnimatedText delay={100}>
+                  <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none">
+                    Louez une voiture directement auprès des propriétaires
+                  </h1>
+                </AnimatedText>
+                <AnimatedText delay={250}>
+                  <p className="max-w-[600px] text-white/80 md:text-xl">
+                    CarShare vous connecte avec des propriétaires de voitures près de chez vous. Trouvez le véhicule idéal
+                    pour vos besoins sans intermédiaire.
+                  </p>
+                </AnimatedText>
               </div>
-              <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                <Button asChild size="lg" className="bg-white text-red-600 hover:bg-gray-100">
-                  <Link href="/search">
-                    Trouver une voiture
-                    <Search className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
-                <Button asChild size="lg" variant="outline" className="border-white text-red-600 hover:bg-white/20 hover:text-white">
-                  <Link href="/register?type=owner">
-                    Publier ma voiture
-                    <Car className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
-              </div>
+              <AnimatedText delay={400}>
+                <div className="flex flex-col gap-2 min-[400px]:flex-row">
+                  <Button asChild size="lg" className="bg-white text-red-600 hover:bg-gray-100">
+                    <Link href="/search">
+                      Trouver une voiture
+                      <Search className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                  <Button asChild size="lg" variant="outline" className="border-white text-red-600 hover:bg-white/20 hover:text-white">
+                    <Link href="/register?type=owner">
+                      Publier ma voiture
+                      <Car className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                </div>
+              </AnimatedText>
             </div>
             <div className="relative lg:block">
-              <div className="relative h-[300px] sm:h-[400px] lg:h-[500px] overflow-hidden rounded-lg">
-                <div className="absolute inset-0 bg-black/20 z-10 rounded-lg" />
-                <img
-                  src="/placeholder.svg?height=500&width=800"
-                  alt="Une voiture moderne garée dans un environnement urbain"
-                  className="object-cover w-full h-full rounded-lg"
-                />
-              </div>
+              <HeroCarousel />
             </div>
           </div>
         </div>
+        
+        {/* Add a decorative element */}
+        <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-r from-red-900/30 to-red-800/20 backdrop-blur-sm z-0"></div>
       </section>
 
       {/* Search Section */}

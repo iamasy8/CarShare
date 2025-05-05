@@ -536,7 +536,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Normalize permission name to handle case differences
       const normalizedPermission = permission.toLowerCase()
       return user.permissions.some(p => p.toLowerCase() === normalizedPermission)
-    }
+  }
     
     return false
   }
