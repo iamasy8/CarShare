@@ -27,6 +27,21 @@ interface MockBooking {
   total: number;
 }
 
+// Helper to convert API bookings to our MockBooking format
+const convertApiBookingToMockBooking = (booking: any): MockBooking => ({
+  id: booking.id,
+  car: booking.car?.title || `Car #${booking.carId}`,
+  client: booking.client?.name || `Client #${booking.clientId}`,
+  status: booking.status,
+  startDate: typeof booking.startDate === 'string' 
+    ? booking.startDate.split('T')[0] 
+    : new Date(booking.startDate).toISOString().split('T')[0],
+  endDate: typeof booking.endDate === 'string'
+    ? booking.endDate.split('T')[0]
+    : new Date(booking.endDate).toISOString().split('T')[0],
+  total: booking.totalPrice
+});
+
 // Mock data for development - will be replaced with API calls
 const mockListings = [
   { id: 1, title: "Tesla Model 3", status: "active", price: 75, bookings: 12, rating: 4.8, image: "/cars/tesla.jpg" },
@@ -121,26 +136,11 @@ export default function OwnerDashboard() {
           // Calculate earnings
           const earnings = ownerDashboardHelpers.calculateEarningsSummary(bookings);
           
-          // Helper to convert API bookings to our MockBooking format
-          const convertApiBookingToMockBooking = (booking: any): MockBooking => ({
-            id: booking.id,
-            car: booking.car?.title || `Car #${booking.carId}`,
-            client: booking.client?.name || `Client #${booking.clientId}`,
-            status: booking.status,
-            startDate: typeof booking.startDate === 'string' 
-              ? booking.startDate.split('T')[0] 
-              : new Date(booking.startDate).toISOString().split('T')[0],
-            endDate: typeof booking.endDate === 'string'
-              ? booking.endDate.split('T')[0]
-              : new Date(booking.endDate).toISOString().split('T')[0],
-            total: booking.totalPrice
-          });
-          
           // Get recent bookings (last 3) and map to MockBooking format for consistency
-          const recentBookings = bookings
+          const recentBookings: MockBooking[] = bookings
             .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
             .slice(0, 3)
-            .map(convertApiBookingToMockBooking);
+            .map(booking => convertApiBookingToMockBooking(booking));
           
           // Get unread message count
           const unreadCount = await getUnreadMessagesCount();
@@ -196,8 +196,8 @@ export default function OwnerDashboard() {
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         ).slice(0, 3);
         
-        // Convert API bookings to our MockBooking format
-        const updatedBookings = recentBookings.map(convertApiBookingToMockBooking);
+        // Convert API bookings to our MockBooking format with proper typing
+        const updatedBookings: MockBooking[] = recentBookings.map(booking => convertApiBookingToMockBooking(booking));
         
         setDashboardData(prev => ({
           ...prev,
@@ -207,7 +207,7 @@ export default function OwnerDashboard() {
       } else {
         // For development, update the mock data
         setDashboardData(prev => {
-          const updatedBookings = prev.recentBookings.map(booking => 
+          const updatedBookings: MockBooking[] = prev.recentBookings.map(booking => 
             booking.id === bookingId ? { ...booking, status: "confirmed" } : booking
           );
           
@@ -237,8 +237,8 @@ export default function OwnerDashboard() {
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         ).slice(0, 3);
         
-        // Convert API bookings to our MockBooking format
-        const updatedBookings = recentBookings.map(convertApiBookingToMockBooking);
+        // Convert API bookings to our MockBooking format with proper typing
+        const updatedBookings: MockBooking[] = recentBookings.map(booking => convertApiBookingToMockBooking(booking));
         
         setDashboardData(prev => ({
           ...prev,
@@ -248,7 +248,7 @@ export default function OwnerDashboard() {
       } else {
         // For development, update the mock data
         setDashboardData(prev => {
-          const updatedBookings = prev.recentBookings.map(booking => 
+          const updatedBookings: MockBooking[] = prev.recentBookings.map(booking => 
             booking.id === bookingId ? { ...booking, status: "rejected" } : booking
           );
           
