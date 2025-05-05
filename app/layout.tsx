@@ -4,11 +4,10 @@ import { Inter } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
 import { RoleThemeProvider } from "@/components/role-theme-provider"
 import Header from "@/components/header"
-import Footer from "@/components/footer"
+import { Footer } from "@/components/footer"
 import { AuthProvider } from "@/lib/auth-context"
 import { ReactQueryProvider } from "@/hooks/useReactQuerySetup"
 import { MobileNavigation } from "@/components/ui/mobile-navigation"
-import { DevTools } from "@/components/dev-tools"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -27,14 +26,13 @@ export default function RootLayout({
       <body className={inter.className}>
         <ReactQueryProvider>
           <AuthProvider>
-            <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
+            <ThemeProvider>
               <RoleThemeProvider>
                 <div className="flex flex-col min-h-screen">
                   <Header />
                   <main className="flex-1">{children}</main>
                   <Footer />
                   <MobileNavigation />
-                  <DevTools />
                 </div>
               </RoleThemeProvider>
             </ThemeProvider>

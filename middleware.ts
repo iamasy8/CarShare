@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import { securityUtils } from "@/lib/utils"
+
+// Rate limiting store
+const rateLimitStore = new Map<string, { count: number; resetTime: number }>()
 
 // This middleware will run on all routes
 export function middleware(request: NextRequest) {
@@ -48,7 +52,10 @@ export function middleware(request: NextRequest) {
   // Define protected routes and their required roles
   const protectedRoutes = {
     '/dashboard': ['client', 'owner', 'admin', 'superadmin'],
-    '/owner': ['owner', 'admin', 'superadmin'],
+    '/owner/dashboard': ['owner', 'admin', 'superadmin'],
+    '/owner/cars': ['owner', 'admin', 'superadmin'],
+    '/owner/bookings': ['owner', 'admin', 'superadmin'],
+    '/owner/settings': ['owner', 'admin', 'superadmin'],
     '/admin': ['admin', 'superadmin'],
     '/admin/users': ['admin', 'superadmin'],
     '/admin/settings': ['superadmin'], // Only super admins can access settings
@@ -150,21 +157,56 @@ export function middleware(request: NextRequest) {
   }
   
   // Continue with the request
-  return NextResponse.next()
+  const response = NextResponse.next()
+
+  // Add security headers
+  Object.entries(securityUtils.securityHeaders).forEach(([key, value]) => {
+    response.headers.set(key, value)
+  })
+
+  // Rate limiting
+  const ip = request.headers.get("x-forwarded-for") || "anonymous"
+  const now = Date.now()
+  const windowMs = securityUtils.rateLimit.windowMs
+  const max = securityUtils.rateLimit.max
+
+  const rateLimitInfo = rateLimitStore.get(ip)
+  if (rateLimitInfo) {
+    if (now > rateLimitInfo.resetTime) {
+      rateLimitStore.set(ip, { count: 1, resetTime: now + windowMs })
+    } else if (rateLimitInfo.count >= max) {
+      return new NextResponse("Too Many Requests", { status: 429 })
+    } else {
+      rateLimitInfo.count++
+    }
+  } else {
+    rateLimitStore.set(ip, { count: 1, resetTime: now + windowMs })
+  }
+
+  // Session timeout check
+  const session = request.cookies.get("session")
+  if (session) {
+    const sessionData = JSON.parse(session.value)
+    if (Date.now() - sessionData.lastActivity > 30 * 60 * 1000) {
+      // Session expired
+      response.cookies.delete("session")
+      return NextResponse.redirect(new URL("/login", request.url))
+    }
+  }
+
+  return response
 }
 
 // Define which routes this middleware should run on
 export const config = {
   matcher: [
-    '/dashboard/:path*',
-    '/owner/:path*',
-    '/admin/:path*',
-    '/bookings/:path*',
-    '/messages/:path*',
-    '/favorites/:path*',
-    '/profile/:path*',
-    '/login',
-    '/login/admin',
-    '/register',
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    "/((?!api|_next/static|_next/image|favicon.ico).*)",
   ],
 }

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Slider } from "@/components/ui/slider"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-import { Heart, Search, Filter, Loader2 } from "lucide-react"
+import { Heart, Search, Filter, Loader2, Bookmark, History } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
@@ -15,7 +15,7 @@ import { carHelpers, handleApiError } from "@/lib/api-helpers"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
-// Type for filter state
+// Type definitions
 interface FilterState {
   priceRange: [number, number];
   types: string[];
@@ -25,6 +25,25 @@ interface FilterState {
   sortBy: string;
   searchTerm: string;
   page: number;
+  transmission: string[];
+  fuelType: string[];
+  minRating: number;
+  startDate?: Date;
+  endDate?: Date;
+}
+
+interface SavedSearch {
+  id: string;
+  name: string;
+  filters: FilterState;
+  createdAt: Date;
+}
+
+interface SearchHistory {
+  id: string;
+  searchTerm: string;
+  filters: FilterState;
+  timestamp: Date;
 }
 
 // Available car types
@@ -36,6 +55,10 @@ const carMakes = ["Renault", "Peugeot", "Citroën", "BMW", "Audi", "Mercedes", "
 // Available features
 const carFeatures = ["Climatisation", "GPS", "Bluetooth", "Caméra de recul", "Sièges cuir"];
 
+// Add new filter options
+const transmissionTypes = ["Automatique", "Manuelle"];
+const fuelTypes = ["Essence", "Diesel", "Électrique", "Hybride"];
+
 export default function SearchPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -43,6 +66,11 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [count, setCount] = useState(0);
+  const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
+  const [searchHistory, setSearchHistory] = useState<SearchHistory[]>([]);
+  const [showSavedSearches, setShowSavedSearches] = useState(false);
+  const [showSearchHistory, setShowSearchHistory] = useState(false);
+  const [itemsPerPage] = useState(10);
 
   // Initialize filters from URL params
   const [filters, setFilters] = useState<FilterState>({
@@ -56,7 +84,12 @@ export default function SearchPage() {
     availableOnly: searchParams.get("availableOnly") === "true",
     sortBy: searchParams.get("sortBy") || "price-asc",
     searchTerm: searchParams.get("q") || "",
-    page: parseInt(searchParams.get("page") || "1")
+    page: parseInt(searchParams.get("page") || "1"),
+    transmission: [],
+    fuelType: [],
+    minRating: 0,
+    startDate: undefined,
+    endDate: undefined
   });
 
   // Load cars with filters
@@ -310,9 +343,145 @@ export default function SearchPage() {
       availableOnly: false,
       sortBy: "price-asc",
       searchTerm: "",
-      page: 1
+      page: 1,
+      transmission: [],
+      fuelType: [],
+      minRating: 0,
+      startDate: undefined,
+      endDate: undefined
     });
   };
+
+  // Add function to save current search
+  const saveCurrentSearch = () => {
+    const newSavedSearch: SavedSearch = {
+      id: Date.now().toString(),
+      name: `Recherche ${savedSearches.length + 1}`,
+      filters: { ...filters },
+      createdAt: new Date()
+    };
+    setSavedSearches([...savedSearches, newSavedSearch]);
+  };
+
+  // Add function to load saved search
+  const loadSavedSearch = (savedSearch: SavedSearch) => {
+    setFilters(savedSearch.filters);
+    setShowSavedSearches(false);
+  };
+
+  // Add function to add to search history
+  const addToSearchHistory = () => {
+    const newHistoryItem: SearchHistory = {
+      id: Date.now().toString(),
+      searchTerm: filters.searchTerm,
+      filters: { ...filters },
+      timestamp: new Date()
+    };
+    setSearchHistory([newHistoryItem, ...searchHistory.slice(0, 9)]);
+  };
+
+  // Update useEffect to handle search history
+  useEffect(() => {
+    if (filters.searchTerm) {
+      addToSearchHistory();
+    }
+  }, [filters.searchTerm]);
+
+  // Add pagination component
+  const Pagination = () => {
+    const totalPages = Math.ceil(count / itemsPerPage);
+    const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
+
+    return (
+      <div className="flex justify-center items-center space-x-2 mt-6">
+        <Button
+          variant="outline"
+          size="icon"
+          className="w-8 h-8"
+          disabled={filters.page === 1}
+          onClick={() => handlePageChange(filters.page - 1)}
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          <span className="sr-only">Previous</span>
+        </Button>
+
+        {pages.map((page) => (
+          <Button
+            key={page}
+            variant={filters.page === page ? "default" : "outline"}
+            size="icon"
+            className="w-8 h-8"
+            onClick={() => handlePageChange(page)}
+          >
+            {page}
+          </Button>
+        ))}
+
+        <Button
+          variant="outline"
+          size="icon"
+          className="w-8 h-8"
+          disabled={filters.page === totalPages}
+          onClick={() => handlePageChange(filters.page + 1)}
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+          <span className="sr-only">Next</span>
+        </Button>
+      </div>
+    );
+  };
+
+  // Add saved searches dropdown
+  const SavedSearchesDropdown = () => (
+    <div className="absolute top-full left-0 w-64 bg-white border rounded-lg shadow-lg mt-1 z-10">
+      <div className="p-2">
+        <h3 className="text-sm font-medium mb-2">Recherches sauvegardées</h3>
+        {savedSearches.length === 0 ? (
+          <p className="text-sm text-gray-500">Aucune recherche sauvegardée</p>
+        ) : (
+          <div className="space-y-1">
+            {savedSearches.map((search) => (
+              <button
+                key={search.id}
+                className="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded"
+                onClick={() => loadSavedSearch(search)}
+              >
+                {search.name}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // Add search history dropdown
+  const SearchHistoryDropdown = () => (
+    <div className="absolute top-full left-0 w-64 bg-white border rounded-lg shadow-lg mt-1 z-10">
+      <div className="p-2">
+        <h3 className="text-sm font-medium mb-2">Historique des recherches</h3>
+        {searchHistory.length === 0 ? (
+          <p className="text-sm text-gray-500">Aucun historique</p>
+        ) : (
+          <div className="space-y-1">
+            {searchHistory.map((item) => (
+              <button
+                key={item.id}
+                className="w-full text-left px-2 py-1 text-sm hover:bg-gray-100 rounded"
+                onClick={() => setFilters(item.filters)}
+              >
+                {item.searchTerm}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -449,9 +618,91 @@ export default function SearchPage() {
                   </div>
                 </div>
 
-                <Button className="w-full bg-red-600 hover:bg-red-700">
-                  <Filter className="mr-2 h-4 w-4" />
-                  Appliquer les filtres
+                {/* Transmission type */}
+                <div>
+                  <h3 className="text-sm font-medium mb-3">Transmission</h3>
+                  <div className="space-y-2">
+                    {transmissionTypes.map((type) => (
+                      <div key={type} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`transmission-${type}`}
+                          checked={filters.transmission.includes(type)}
+                          onCheckedChange={(checked) => checked !== undefined &&
+                            handleCheckboxChange('transmission', type)
+                          }
+                        />
+                        <Label htmlFor={`transmission-${type}`} className="text-sm font-normal">
+                          {type}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Fuel type */}
+                <div>
+                  <h3 className="text-sm font-medium mb-3">Carburant</h3>
+                  <div className="space-y-2">
+                    {fuelTypes.map((type) => (
+                      <div key={type} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`fuel-${type}`}
+                          checked={filters.fuelType.includes(type)}
+                          onCheckedChange={(checked) => checked !== undefined &&
+                            handleCheckboxChange('fuelType', type)
+                          }
+                        />
+                        <Label htmlFor={`fuel-${type}`} className="text-sm font-normal">
+                          {type}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Rating filter */}
+                <div>
+                  <h3 className="text-sm font-medium mb-3">Note minimum</h3>
+                  <div className="space-y-2">
+                    <Slider
+                      value={[filters.minRating]}
+                      min={0}
+                      max={5}
+                      step={0.5}
+                      onValueChange={(value) => setFilters(prev => ({ ...prev, minRating: value[0] }))}
+                    />
+                    <div className="flex justify-between text-sm text-gray-500">
+                      <span>0</span>
+                      <span>5</span>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Date range picker */}
+                <div>
+                  <h3 className="text-sm font-medium mb-3">Dates de disponibilité</h3>
+                  <div className="space-y-2">
+                    <Input
+                      type="date"
+                      value={filters.startDate?.toISOString().split('T')[0] || ''}
+                      onChange={(e) => setFilters(prev => ({ ...prev, startDate: new Date(e.target.value) }))}
+                    />
+                    <Input
+                      type="date"
+                      value={filters.endDate?.toISOString().split('T')[0] || ''}
+                      onChange={(e) => setFilters(prev => ({ ...prev, endDate: new Date(e.target.value) }))}
+                    />
+                  </div>
+                </div>
+
+                <Button className="w-full bg-red-600 hover:bg-red-700 mt-4" onClick={saveCurrentSearch}>
+                  Sauvegarder cette recherche
                 </Button>
               </div>
             </div>
@@ -459,7 +710,7 @@ export default function SearchPage() {
 
           {/* Main content */}
           <div className="flex-1">
-            {/* Search bar */}
+            {/* Search bar with saved searches and history */}
             <div className="bg-white p-4 rounded-lg border mb-6">
               <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4">
                 <div className="relative flex-1">
@@ -470,6 +721,26 @@ export default function SearchPage() {
                     className="pl-9" 
                     defaultValue={filters.searchTerm}
                   />
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex space-x-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowSavedSearches(!showSavedSearches)}
+                    >
+                      <Bookmark className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowSearchHistory(!showSearchHistory)}
+                    >
+                      <History className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {showSavedSearches && <SavedSearchesDropdown />}
+                  {showSearchHistory && <SearchHistoryDropdown />}
                 </div>
                 <Button type="submit" className="bg-red-600 hover:bg-red-700">
                   <Search className="mr-2 h-4 w-4" />
@@ -478,11 +749,13 @@ export default function SearchPage() {
               </form>
             </div>
 
-            {/* Results header */}
+            {/* Results header with count and pagination info */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
               <div>
                 <h1 className="text-2xl font-bold">Résultats de recherche</h1>
-                <p className="text-gray-500">{count} voitures trouvées</p>
+                <p className="text-gray-500">
+                  {count} voitures trouvées • Page {filters.page} sur {Math.ceil(count / itemsPerPage)}
+                </p>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-500">Trier par:</span>
@@ -498,14 +771,23 @@ export default function SearchPage() {
               </div>
             </div>
 
-            {/* Error state */}
+            {/* Error state with retry option */}
             {error && (
               <Alert variant="destructive" className="mb-6">
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription>
+                  {error}
+                  <Button
+                    variant="link"
+                    className="ml-2"
+                    onClick={() => window.location.reload()}
+                  >
+                    Réessayer
+                  </Button>
+                </AlertDescription>
               </Alert>
             )}
 
-            {/* Loading state */}
+            {/* Loading state with progress indicator */}
             {loading ? (
               <div className="flex justify-center items-center h-64">
                 <Loader2 className="h-8 w-8 animate-spin text-red-600" />
@@ -514,8 +796,17 @@ export default function SearchPage() {
             ) : cars.length === 0 ? (
               <div className="bg-white rounded-lg border p-8 text-center">
                 <h2 className="text-xl font-semibold mb-2">Aucune voiture trouvée</h2>
-                <p className="text-gray-500 mb-4">Essayez de modifier vos filtres pour voir plus de résultats.</p>
-                <Button variant="outline" onClick={resetFilters}>Réinitialiser les filtres</Button>
+                <p className="text-gray-500 mb-4">
+                  Essayez de modifier vos filtres ou de réinitialiser la recherche.
+                </p>
+                <div className="space-x-4">
+                  <Button variant="outline" onClick={resetFilters}>
+                    Réinitialiser les filtres
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowSavedSearches(true)}>
+                    Voir les recherches sauvegardées
+                  </Button>
+                </div>
               </div>
             ) : (
               <>
@@ -601,53 +892,7 @@ export default function SearchPage() {
             </div>
 
             {/* Pagination */}
-            <div className="mt-8 flex justify-center">
-              <nav className="flex items-center gap-1">
-                    <Button 
-                      variant="outline" 
-                      size="icon" 
-                      className="w-8 h-8" 
-                      disabled={filters.page === 1}
-                      onClick={() => handlePageChange(filters.page - 1)}
-                    >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                  <span className="sr-only">Previous</span>
-                </Button>
-                    
-                    {/* Show 5 page buttons at most */}
-                    {Array.from({ length: Math.min(5, Math.ceil(count / 10)) }, (_, i) => {
-                      const page = Math.min(Math.max(1, filters.page - 2), Math.ceil(count / 10) - 4) + i;
-                      return (
-                        <Button 
-                          key={page}
-                          variant="outline" 
-                          size="sm" 
-                          className={`w-8 h-8 ${
-                            page === filters.page ? "bg-red-600 text-white border-red-600" : ""
-                          }`}
-                          onClick={() => handlePageChange(page)}
-                        >
-                          {page}
-                </Button>
-                      );
-                    })}
-                    
-                    <Button 
-                      variant="outline" 
-                      size="icon" 
-                      className="w-8 h-8"
-                      disabled={filters.page === Math.ceil(count / 10) || count === 0}
-                      onClick={() => handlePageChange(filters.page + 1)}
-                    >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                  <span className="sr-only">Next</span>
-                </Button>
-              </nav>
-            </div>
+                <Pagination />
               </>
             )}
           </div>

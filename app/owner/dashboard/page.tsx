@@ -14,6 +14,18 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { bookingService, carService } from "@/lib/api"
 import { ownerDashboardHelpers, bookingHelpers, handleApiError, DashboardSummary, Notification } from "@/lib/api-helpers"
+import { handleError } from "@/lib/utils"
+
+// Define a type for our mock bookings to match the expected structure
+interface MockBooking {
+  id: number;
+  car: string;
+  client: string;
+  status: string;
+  startDate: string;
+  endDate: string;
+  total: number;
+}
 
 // Mock data for development - will be replaced with API calls
 const mockListings = [
@@ -22,7 +34,8 @@ const mockListings = [
   { id: 3, title: "Mercedes Class C", status: "pending", price: 70, bookings: 0, rating: 0, image: "/cars/mercedes.jpg" },
 ];
 
-const mockBookings = [
+// Update the mock bookings with proper typing
+const mockBookings: MockBooking[] = [
   { id: 101, car: "Tesla Model 3", client: "Jean Dupont", status: "confirmed", startDate: "2023-08-10", endDate: "2023-08-12", total: 225 },
   { id: 102, car: "BMW Series 3", client: "Marie Martin", status: "pending", startDate: "2023-08-15", endDate: "2023-08-18", total: 260 },
   { id: 103, car: "Tesla Model 3", client: "Philippe Leclerc", status: "completed", startDate: "2023-07-28", endDate: "2023-07-30", total: 225 },
@@ -51,7 +64,14 @@ const mockEarnings = {
 export default function OwnerDashboard() {
   const { user, logout, isOwner, status } = useAuth()
   const router = useRouter()
-  const [dashboardData, setDashboardData] = useState<DashboardSummary>({
+  const [dashboardData, setDashboardData] = useState<{
+    activeListings: number;
+    pendingBookings: number;
+    totalEarnings: number;
+    pendingEarnings: number;
+    recentBookings: MockBooking[];
+    notifications: Notification[];
+  }>({
     activeListings: 0,
     pendingBookings: 0,
     totalEarnings: 0,
@@ -61,6 +81,24 @@ export default function OwnerDashboard() {
   })
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState("")
+  
+  // Improved unread message count functionality
+  const getUnreadMessagesCount = async (): Promise<number> => {
+    try {
+      if (process.env.NODE_ENV === "production") {
+        // In production, this would call the API
+        const response = await fetch('/api/messages/unread/count')
+        const data = await response.json()
+        return data.count
+      } else {
+        // Mock data for development
+        return mockNotifications.filter(n => !n.read).length
+      }
+    } catch (error) {
+      console.error("Failed to get unread message count:", error)
+      return 0
+    }
+  }
   
   // Fetch owner dashboard data
   useEffect(() => {
@@ -83,13 +121,32 @@ export default function OwnerDashboard() {
           // Calculate earnings
           const earnings = ownerDashboardHelpers.calculateEarningsSummary(bookings);
           
-          // Get recent bookings (last 3)
-          const recentBookings = bookings.sort((a, b) => 
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          ).slice(0, 3);
+          // Helper to convert API bookings to our MockBooking format
+          const convertApiBookingToMockBooking = (booking: any): MockBooking => ({
+            id: booking.id,
+            car: booking.car?.title || `Car #${booking.carId}`,
+            client: booking.client?.name || `Client #${booking.clientId}`,
+            status: booking.status,
+            startDate: typeof booking.startDate === 'string' 
+              ? booking.startDate.split('T')[0] 
+              : new Date(booking.startDate).toISOString().split('T')[0],
+            endDate: typeof booking.endDate === 'string'
+              ? booking.endDate.split('T')[0]
+              : new Date(booking.endDate).toISOString().split('T')[0],
+            total: booking.totalPrice
+          });
           
-          // In a real app, we would fetch notifications from an API
-          // For development, we'll use mock data for notifications
+          // Get recent bookings (last 3) and map to MockBooking format for consistency
+          const recentBookings = bookings
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice(0, 3)
+            .map(convertApiBookingToMockBooking);
+          
+          // Get unread message count
+          const unreadCount = await getUnreadMessagesCount();
+          
+          // Get notifications with proper read/unread status
+          const notifications = await fetch('/api/notifications').then(res => res.json());
           
           setDashboardData({
             activeListings,
@@ -97,10 +154,12 @@ export default function OwnerDashboard() {
             totalEarnings: earnings.monthly,
             pendingEarnings: earnings.pending,
             recentBookings,
-            notifications: mockNotifications as Notification[]
+            notifications
           });
         } else {
           // For development, use mock data
+          const unreadCount = await getUnreadMessagesCount();
+          
           setDashboardData({
             activeListings: mockListings.filter(l => l.status === "active").length,
             pendingBookings: mockBookings.filter(b => b.status === "pending").length,
@@ -115,7 +174,7 @@ export default function OwnerDashboard() {
         }
       } catch (err) {
         console.error("Error fetching dashboard data:", err);
-        setError(handleApiError(err, "Failed to load dashboard data"));
+        setError(handleError(err, "Failed to load dashboard data"));
       } finally {
         setIsLoading(false);
       }
@@ -124,7 +183,7 @@ export default function OwnerDashboard() {
     fetchDashboardData();
   }, [status, isOwner]);
   
-  // Handle booking approval
+  // Handle booking approval - update function to handle our mock booking type
   const handleApproveBooking = async (bookingId: number) => {
     try {
       if (process.env.NODE_ENV === "production") {
@@ -137,10 +196,13 @@ export default function OwnerDashboard() {
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         ).slice(0, 3);
         
+        // Convert API bookings to our MockBooking format
+        const updatedBookings = recentBookings.map(convertApiBookingToMockBooking);
+        
         setDashboardData(prev => ({
           ...prev,
           pendingBookings,
-          recentBookings
+          recentBookings: updatedBookings
         }));
       } else {
         // For development, update the mock data
@@ -162,7 +224,7 @@ export default function OwnerDashboard() {
     }
   }
   
-  // Handle booking rejection
+  // Handle booking rejection - update function to handle our mock booking type
   const handleRejectBooking = async (bookingId: number) => {
     try {
       if (process.env.NODE_ENV === "production") {
@@ -175,10 +237,13 @@ export default function OwnerDashboard() {
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         ).slice(0, 3);
         
+        // Convert API bookings to our MockBooking format
+        const updatedBookings = recentBookings.map(convertApiBookingToMockBooking);
+        
         setDashboardData(prev => ({
           ...prev,
           pendingBookings,
-          recentBookings
+          recentBookings: updatedBookings
         }));
       } else {
         // For development, update the mock data

@@ -13,6 +13,7 @@ import {
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import { formatDate } from "@/lib/utils"
 
 export default function ClientDashboard() {
   const { user } = useAuth()
@@ -30,40 +31,52 @@ export default function ClientDashboard() {
     id: 1,
     carName: "Renault Clio",
     ownerName: "Thomas Dubois",
-    startDate: "19 mai 2023",
-    endDate: "22 mai 2023",
+    startDate: "2023-05-19T00:00:00.000Z",
+    endDate: "2023-05-22T00:00:00.000Z",
     price: "350€",
     location: "Casablanca, Morocco",
     status: "confirmé"
   }
 
-  // Mock recommended cars
+  // Mock recommended cars with standardized structure
   const recommendedCars = [
     {
       id: 1,
       name: "Peugeot 3008",
+      make: "Peugeot",
+      model: "3008",
       type: "SUV",
       pricePerDay: 65,
       location: "Casablanca",
       rating: 4.8,
+      year: 2021,
+      features: ["Climatisation", "GPS", "Bluetooth"],
       image: "/placeholder.svg?height=100&width=150"
     },
     {
       id: 2,
       name: "Renault Captur",
+      make: "Renault",
+      model: "Captur",
       type: "Crossover",
       pricePerDay: 45,
       location: "Casablanca",
       rating: 4.6,
+      year: 2022,
+      features: ["Climatisation", "Bluetooth", "Camera de recul"],
       image: "/placeholder.svg?height=100&width=150"
     },
     {
       id: 3,
       name: "Citroën C3",
+      make: "Citroën",
+      model: "C3",
       type: "Citadine",
       pricePerDay: 35,
       location: "Casablanca",
       rating: 4.7,
+      year: 2020,
+      features: ["Climatisation", "USB", "Bluetooth"],
       image: "/placeholder.svg?height=100&width=150"
     }
   ]
@@ -74,8 +87,8 @@ export default function ClientDashboard() {
       id: 1,
       car: "Renault Clio",
       owner: "Martin Durand",
-      startDate: "15/05/2023",
-      endDate: "18/05/2023",
+      startDate: "2023-05-15T00:00:00.000Z",
+      endDate: "2023-05-18T00:00:00.000Z",
       status: "completed",
       location: "Casablanca, Morocco",
       price: 105,
@@ -199,7 +212,7 @@ export default function ClientDashboard() {
                   <div className="mt-2 space-y-1">
                     <p className="text-sm flex items-center">
                       <Calendar className="mr-2 h-4 w-4 text-gray-500" />
-                      Du {upcomingBooking.startDate} au {upcomingBooking.endDate}
+                      Du {formatDate(upcomingBooking.startDate, 'long')} au {formatDate(upcomingBooking.endDate, 'long')}
                     </p>
                     <p className="text-sm flex items-center">
                       <Car className="mr-2 h-4 w-4 text-gray-500" />

@@ -10,7 +10,7 @@ import { ThemeToggle } from "./theme-toggle"
 import { NotificationBell } from "./ui/notification-bell"
 import { UserMenu } from "./user-menu"
 import { RoleBadge } from "./ui/role-badge"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet"
 
 export default function Header() {
   const pathname = usePathname()
@@ -24,13 +24,13 @@ export default function Header() {
     { href: "/about", label: "À propos", icon: Info },
     { href: "/how-it-works", label: "Comment ça marche", icon: HelpCircle },
   ]
-  
+
   return (
     <header className="sticky top-0 z-50 bg-background border-b">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 text-xl font-bold">
-          <Car className="h-6 w-6 text-primary" />
+          <Car className="h-6 w-6 text-red-500" />
           <span className="hidden sm:inline">CarShare</span>
           {isAuthenticated && user && (
             <RoleBadge role={user.role} className="ml-2" />
@@ -40,31 +40,31 @@ export default function Header() {
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-4">
           {navItems.map((item) => (
-            <Button 
-              key={item.href} 
-              variant="ghost" 
-              asChild 
+              <Button 
+                key={item.href} 
+                variant="ghost" 
+                asChild 
               className={pathname === item.href ? "bg-accent" : ""}
-            >
-              <Link href={item.href}>{item.label}</Link>
-            </Button>
-          ))}
-          
+              >
+                <Link href={item.href}>{item.label}</Link>
+              </Button>
+            ))}
+
           {isAuthenticated ? (
             <div className="flex items-center gap-2 ml-4">
               <NotificationBell />
-              <ThemeToggle />
+                <ThemeToggle />
               <UserMenu />
-            </div>
+              </div>
           ) : (
             <div className="flex items-center gap-2 ml-4">
               <ThemeToggle />
-              <Button asChild variant="ghost">
-                <Link href="/login">Se connecter</Link>
-              </Button>
+                <Button asChild variant="ghost">
+                  <Link href="/login">Se connecter</Link>
+                </Button>
               <Button asChild>
-                <Link href="/register">S'inscrire</Link>
-              </Button>
+                  <Link href="/register">S'inscrire</Link>
+                </Button>
             </div>
           )}
         </nav>
@@ -81,40 +81,41 @@ export default function Header() {
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-[80vw] sm:w-[350px] p-0">
+              <SheetTitle className="sr-only">Navigation menu</SheetTitle>
               <div className="flex flex-col h-full">
                 {isAuthenticated && user && (
                   <div className="p-4 border-b">
                     <div className="flex items-center gap-3">
                       {user.avatar ? (
                         <img src={user.avatar} alt={user.name} className="h-10 w-10 rounded-full" />
-                      ) : (
+                        ) : (
                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
                           {user.name.charAt(0).toUpperCase()}
-                        </div>
+                      </div>
                       )}
                       <div>
                         <p className="font-medium">{user.name}</p>
                         <RoleBadge role={user.role} />
                       </div>
                     </div>
-                  </div>
+                        </div>
                 )}
-                
+
                 <div className="flex-1 overflow-auto p-4">
                   <div className="flex flex-col gap-1">
                     {navItems.map((item) => (
                       <Button
                         key={item.href}
                         variant={pathname === item.href ? "secondary" : "ghost"}
-                        asChild
+                              asChild
                         className="justify-start"
-                      >
+                            >
                         <Link href={item.href}>
                           <item.icon className="mr-2 h-4 w-4" />
                           {item.label}
                         </Link>
-                      </Button>
-                    ))}
+                            </Button>
+                          ))}
                     
                     {!isAuthenticated && (
                       <>
@@ -125,8 +126,8 @@ export default function Header() {
                           <Link href="/register">S'inscrire</Link>
                         </Button>
                       </>
-                    )}
-                  </div>
+                      )}
+                    </div>
                 </div>
               </div>
             </SheetContent>

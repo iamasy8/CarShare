@@ -129,7 +129,7 @@ const mockUsers = {
     isVerified: true,
     lastLogin: new Date(),
     sessionExpiry: new Date(Date.now() + 1000 * 60 * 60 * 24)
-  },
+    },
   owner: {
     id: 3,
     name: "Car Owner",
@@ -193,8 +193,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // UNCOMMENT THIS LINE TO AUTO-LOGIN AS ADMIN FOR TESTING
           // setUser(mockUsers.admin)
           
-          setStatus("unauthenticated")
-        } catch (err) {
+              setStatus("unauthenticated")
+          } catch (err) {
           console.error("Failed to validate authentication:", err)
           setStatus("unauthenticated")
         }
@@ -292,9 +292,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (userData.lastLogin) {
         userData.lastLogin = new Date(userData.lastLogin)
       }
-      
-      setUser(userData)
-      setStatus("authenticated")
+            
+            setUser(userData)
+            setStatus("authenticated")
       
       return userData
     } catch (err) {
@@ -302,10 +302,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (err instanceof Error) {
         setError(err.message)
         throw new Error(err.message)
-      } else {
+          } else {
         setError("An unknown error occurred during login")
         throw new Error("An unknown error occurred during login")
-      }
+          }
     } finally {
       setLoading(prev => ({ ...prev, login: false }))
     }
@@ -325,16 +325,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (!userData.email || !userData.password) {
         throw new Error("Email and password are required")
       }
-      
+
       // FOR TESTING - No backend needed
       // Create a mock user based on the registration data
       const mockUser: User = {
-        id: Math.floor(Math.random() * 1000) + 10,
-        name: `${userData.firstName} ${userData.lastName}`,
-        email: userData.email,
-        role: role as "client" | "owner" | "admin" | "superadmin",
+              id: Math.floor(Math.random() * 1000) + 10,
+              name: `${userData.firstName} ${userData.lastName}`,
+              email: userData.email,
+              role: role as "client" | "owner" | "admin" | "superadmin",
         avatar: "",
-        isVerified: true,
+        isVerified: false, // Changed from true to false as new users shouldn't be verified automatically
         lastLogin: new Date(),
         sessionExpiry: new Date(Date.now() + 1000 * 60 * 60 * 24)
       }
@@ -383,11 +383,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Continue with cleanup even if API call fails
     }
     
-    setUser(null)
-    setStatus("unauthenticated")
+      setUser(null)
+      setStatus("unauthenticated")
     
     // Redirect to homepage
-    router.push("/")
+      router.push("/")
   }
 
   // Update subscription
@@ -402,16 +402,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // For now, just update the user state directly
       // This should be replaced with an actual API call when backend is ready
       if (user) {
-        const updatedUser = {
-          ...user,
-          subscription: {
+            const updatedUser = { 
+              ...user, 
+              subscription: {
             ...subscription,
-            startDate: new Date(),
+                startDate: new Date(),
             nextBillingDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          }
-        }
-        
-        setUser(updatedUser)
+              } 
+            }
+            
+            setUser(updatedUser)
       }
       
     } catch (err) {
@@ -435,7 +435,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!user?.sessionExpiry) return false
     
     const now = new Date()
-    return now > user.sessionExpiry
+    const isExpired = now > user.sessionExpiry
+    
+    if (isExpired) {
+      // Trigger logout automatically
+      logout()
+    }
+    
+    return isExpired
   }
 
   // Log admin actions
@@ -465,10 +472,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Call token refresh API
       await authService.refreshToken()
       
-      // Update session expiry (for demo, just add 1 hour)
+      // Update session expiry with a configurable duration
+      const SESSION_DURATION_MS = 60 * 60 * 1000 // 1 hour in milliseconds
       const extendedUser = {
         ...user,
-        sessionExpiry: new Date(Date.now() + 60 * 60 * 1000)
+        sessionExpiry: new Date(Date.now() + SESSION_DURATION_MS)
       }
       
       setUser(extendedUser)
@@ -499,9 +507,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (updatedUser.lastLogin) {
         updatedUser.lastLogin = new Date(updatedUser.lastLogin)
-      }
-      
-      setUser(updatedUser)
+    }
+    
+    setUser(updatedUser)
       
       return updatedUser
     } catch (err) {
@@ -525,7 +533,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     // Regular admin has permissions based on their assigned permissions
     if (user.role === "admin" && user.permissions) {
-      return user.permissions.includes(permission)
+      // Normalize permission name to handle case differences
+      const normalizedPermission = permission.toLowerCase()
+      return user.permissions.some(p => p.toLowerCase() === normalizedPermission)
     }
     
     return false

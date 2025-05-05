@@ -1,113 +1,155 @@
-import Link from "next/link"
-import { Car, Facebook, Instagram, Twitter } from "lucide-react"
+"use client"
 
-export default function Footer() {
+import React from "react"
+import Link from "next/link"
+import { Car, Facebook, Instagram, MessageCircle } from "lucide-react"
+import { Separator } from "@/components/ui/separator"
+import { Button } from "@/components/ui/button"
+import { moroccoLocalization } from "@/lib/localization"
+
+// Footer links structure
+const footerLinks = {
+  quickLinks: [
+    { name: "Accueil", href: "/" },
+    { name: "Rechercher", href: "/search" },
+    { name: "Comment ça marche", href: "/how-it-works" },
+    { name: "À propos de nous", href: "/about" },
+    { name: "Contact", href: "/contact" },
+  ],
+  owners: [
+    { name: "Devenir propriétaire", href: "/register?type=owner" },
+    { name: "Comment ça marche", href: "/owner-info/how-it-works" },
+    { name: "Tarifs et abonnements", href: "/owner-info/pricing" },
+    { name: "Guide du propriétaire", href: "/owner-info/guide" },
+    { name: "FAQ propriétaires", href: "/owner-info/faq" },
+  ],
+  legal: [
+    { name: "Conditions générales", href: "/terms" },
+    { name: "Politique de confidentialité", href: "/privacy" },
+    { name: "Politique de cookies", href: "/cookies" },
+    { name: "Mentions légales", href: "/legal" },
+  ],
+}
+
+// Social media links with default values
+const socialLinks = [
+  {
+    name: "Facebook",
+    href: moroccoLocalization.socialMedia?.facebook || "https://www.facebook.com/carshare",
+    icon: Facebook,
+  },
+  {
+    name: "Instagram",
+    href: moroccoLocalization.socialMedia?.instagram || "https://www.instagram.com/carshare",
+    icon: Instagram,
+  },
+  {
+    name: "WhatsApp",
+    href: moroccoLocalization.socialMedia?.whatsapp || "https://wa.me/2126123456",
+    icon: MessageCircle,
+  },
+]
+
+export function Footer() {
   return (
-    <footer className="bg-gray-900 dark:bg-gray-950 text-gray-300 dark:text-gray-400">
-      <div className="container px-4 md:px-6 py-12 mx-auto">
-        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-4">
-          <div>
-            <Link href="/" className="flex items-center gap-2 text-white mb-4">
+    <footer className="bg-gray-900 text-gray-200">
+      <div className="container mx-auto px-4 py-10">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          {/* Logo and Description */}
+          <div className="col-span-1">
+            <Link href="/" className="flex items-center gap-2 text-xl font-bold mb-4">
               <Car className="h-6 w-6 text-red-500" />
-              <span className="text-xl font-bold">CarShare</span>
+              <span className="text-white">CarShare</span>
             </Link>
-            <p className="text-sm">
-              CarShare est une plateforme innovante permettant aux propriétaires de voitures de publier des annonces
-              pour louer leurs véhicules, et aux clients de consulter ces offres.
+            <p className="text-sm text-gray-400 mb-4">
+              CarShare est une plateforme permettant d'emprunter ou de louer des véhicules particuliers à des tarifs avantageux.
             </p>
-            <div className="flex mt-4 space-x-4">
-              <Link href="#" className="text-gray-400 hover:text-white">
-                <Facebook className="h-5 w-5" />
-                <span className="sr-only">Facebook</span>
-              </Link>
-              <Link href="#" className="text-gray-400 hover:text-white">
-                <Twitter className="h-5 w-5" />
-                <span className="sr-only">Twitter</span>
-              </Link>
-              <Link href="#" className="text-gray-400 hover:text-white">
-                <Instagram className="h-5 w-5" />
-                <span className="sr-only">Instagram</span>
-              </Link>
+            <div className="flex space-x-3 mt-6">
+              {socialLinks.map((social) => (
+                <a
+                  key={social.name}
+                  href={social.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-gray-800 hover:bg-gray-700 rounded-full p-2 flex items-center justify-center transition-colors"
+                  aria-label={`Visiter notre page ${social.name}`}
+                >
+                  <social.icon className="h-5 w-5 text-gray-300" />
+                </a>
+              ))}
             </div>
           </div>
-          <div>
-            <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">Liens rapides</h3>
+
+          {/* Quick Links */}
+          <div className="col-span-1">
+            <h3 className="text-sm font-semibold uppercase mb-4 tracking-wider">
+              Liens rapides
+            </h3>
             <ul className="space-y-2">
-              <li>
-                <Link href="/search" className="text-sm hover:text-white">
-                  Rechercher une voiture
-                </Link>
-              </li>
-              <li>
-                <Link href="/how-it-works" className="text-sm hover:text-white">
-                  Comment ça marche
-                </Link>
-              </li>
-              <li>
-                <Link href="/about" className="text-sm hover:text-white">
-                  À propos de nous
-                </Link>
-              </li>
-              <li>
-                <Link href="/contact" className="text-sm hover:text-white">
-                  Contact
-                </Link>
-              </li>
+              {footerLinks.quickLinks.map((link) => (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    className="text-gray-400 hover:text-white text-sm transition-colors"
+                  >
+                    {link.name}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
-          <div>
-            <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">Propriétaires</h3>
+
+          {/* Owners Section */}
+          <div className="col-span-1">
+            <h3 className="text-sm font-semibold uppercase mb-4 tracking-wider">
+              Propriétaires
+            </h3>
             <ul className="space-y-2">
-              <li>
-                <Link href="/register?type=owner" className="text-sm hover:text-white">
-                  Devenir propriétaire
-                </Link>
-              </li>
-              <li>
-                <Link href="/pricing" className="text-sm hover:text-white">
-                  Tarifs et abonnements
-                </Link>
-              </li>
-              <li>
-                <Link href="/owner-guide" className="text-sm hover:text-white">
-                  Guide du propriétaire
-                </Link>
-              </li>
-              <li>
-                <Link href="/faq-owners" className="text-sm hover:text-white">
-                  FAQ propriétaires
-                </Link>
-              </li>
+              {footerLinks.owners.map((link) => (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    className="text-gray-400 hover:text-white text-sm transition-colors"
+                  >
+                    {link.name}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
-          <div>
-            <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">Légal</h3>
+
+          {/* Legal Section */}
+          <div className="col-span-1">
+            <h3 className="text-sm font-semibold uppercase mb-4 tracking-wider">
+              Légal
+            </h3>
             <ul className="space-y-2">
-              <li>
-                <Link href="/terms" className="text-sm hover:text-white">
-                  Conditions d'utilisation
-                </Link>
-              </li>
-              <li>
-                <Link href="/privacy" className="text-sm hover:text-white">
-                  Politique de confidentialité
-                </Link>
-              </li>
-              <li>
-                <Link href="/cookies" className="text-sm hover:text-white">
-                  Politique de cookies
-                </Link>
-              </li>
-              <li>
-                <Link href="/legal" className="text-sm hover:text-white">
-                  Mentions légales
-                </Link>
-              </li>
+              {footerLinks.legal.map((link) => (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    className="text-gray-400 hover:text-white text-sm transition-colors"
+                  >
+                    {link.name}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
         </div>
-        <div className="border-t border-gray-800 mt-8 pt-8 flex flex-col sm:flex-row justify-between items-center">
-          <p className="text-sm text-gray-400">&copy; {new Date().getFullYear()} CarShare. Tous droits réservés.</p>
+
+        <Separator className="my-8 bg-gray-800" />
+
+        {/* Copyright */}
+        <div className="flex flex-col md:flex-row justify-between items-center text-gray-400 text-sm">
+          <p>© {new Date().getFullYear()} CarShare. Tous droits réservés.</p>
+          <Button
+            asChild
+            variant="link"
+            className="text-gray-400 hover:text-white p-0 h-auto mt-2 md:mt-0"
+          >
+            <Link href="/sitemap">Sitemap</Link>
+          </Button>
         </div>
       </div>
     </footer>

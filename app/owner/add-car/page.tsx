@@ -26,7 +26,8 @@ import { VerificationStatus } from "@/components/owner/verification-status"
 import { FileUpload } from "@/components/ui/file-upload"
 import { useCreateCar } from "@/hooks/useCars"
 import { toast } from "sonner"
-import { cn } from "@/lib/utils"
+import { cn, handleError, validateFiles } from "@/lib/utils"
+import { carService } from "@/lib/api"
 
 // Car features options
 const carFeatures = [
@@ -122,8 +123,19 @@ export default function AddCarPage() {
   // Get owner cars count
   useEffect(() => {
     const getCarCount = async () => {
-      // In real implementation, use the subscription service to get limits
-      setCarCount(Math.min(user?.subscription?.tier === "basic" ? 0 : 2, 3))
+      try {
+        if (process.env.NODE_ENV === "production") {
+          const count = await carService.getOwnerCarCount()
+          setCarCount(count)
+        } else {
+          // For development, simulate API with realistic values based on subscription tier
+          setCarCount(user?.subscription?.tier === "basic" ? 1 : 
+                     user?.subscription?.tier === "standard" ? 2 : 3)
+        }
+      } catch (error) {
+        console.error("Failed to get car count:", error)
+        setCarCount(0)
+      }
     }
     
     if (user?.role === "owner") {
@@ -131,10 +143,12 @@ export default function AddCarPage() {
     }
   }, [user])
   
-  const canAddCar = user?.isVerified && (
+  // More robust subscription tier check
+  const canAddCar = Boolean(user?.isVerified) && (
     (user?.subscription?.tier === "premium") || 
     (user?.subscription?.tier === "standard" && carCount < 3) || 
-    (user?.subscription?.tier === "basic" && carCount < 1)
+    (user?.subscription?.tier === "basic" && carCount < 1) ||
+    false
   )
 
   // Initialize form with react-hook-form
@@ -162,13 +176,20 @@ export default function AddCarPage() {
       return
     }
     
-    if (carImages.length === 0) {
-      toast.error("Veuillez ajouter au moins une image de votre véhicule")
-      return
+    // Use the shared utility for file validation
+    const validation = validateFiles(carImages, {
+      maxSize: 5 * 1024 * 1024,
+      allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
+      required: true
+    });
+    
+    if (!validation.valid) {
+      toast.error(validation.message || "Please upload valid images");
+      return;
     }
     
     setIsSubmitting(true)
-    
+
     try {
       // Prepare form data for API submission
       const formData = new FormData()
@@ -197,22 +218,23 @@ export default function AddCarPage() {
       formData.append('title', `${values.make} ${values.model}`)
       
       // Add images
-      carImages.forEach((image) => {
-        formData.append('images', image)
+      carImages.forEach((image, index) => {
+        formData.append(`images[${index}]`, image)
       })
       
       // Submit using our mutation
       await createCarMutation.mutateAsync(formData)
-      
+
       setSubmitSuccess(true)
-      
+
       // Redirect to listings after short delay
       setTimeout(() => {
         router.push('/owner/listings')
       }, 2000)
     } catch (error) {
       console.error('Failed to add car:', error)
-      toast.error("Une erreur s'est produite lors de l'ajout de votre véhicule")
+      const errorMessage = handleError(error, "Une erreur s'est produite lors de l'ajout de votre véhicule")
+      toast.error(errorMessage)
     } finally {
       setIsSubmitting(false)
     }
@@ -258,16 +280,15 @@ export default function AddCarPage() {
         <p className="text-gray-500">
           Remplissez le formulaire ci-dessous pour ajouter votre véhicule à la plateforme.
         </p>
-      </div>
+        </div>
 
       {!user?.isVerified && (
-        <VerificationStatus className="mb-6" />
+        <VerificationStatus />
       )}
 
       <SubscriptionLimitsAlert
-        carCount={carCount}
-        tier={user?.subscription?.tier || "basic"}
-        className="mb-6"
+        currentCarCount={carCount}
+        showUpgradeLink={true}
       />
       
       <Form {...form}>
@@ -314,9 +335,9 @@ export default function AddCarPage() {
                     <FormItem>
                       <FormLabel>Modèle</FormLabel>
                       <FormControl>
-                        <Input
+                        <Input 
                           placeholder="Exemple: Clio, 3008"
-                          {...field}
+                          {...field} 
                           disabled={isSubmitting || !canAddCar}
                         />
                       </FormControl>
@@ -334,9 +355,9 @@ export default function AddCarPage() {
                     <FormItem>
                       <FormLabel>Année</FormLabel>
                       <FormControl>
-                        <Input
+                        <Input 
                           placeholder="2021"
-                          {...field}
+                          {...field} 
                           disabled={isSubmitting || !canAddCar}
                         />
                       </FormControl>
@@ -381,9 +402,9 @@ export default function AddCarPage() {
                   <FormItem>
                     <FormLabel>Localisation</FormLabel>
                     <FormControl>
-                      <Input
+                      <Input 
                         placeholder="Ville où se trouve le véhicule"
-                        {...field}
+                        {...field} 
                         disabled={isSubmitting || !canAddCar}
                       />
                     </FormControl>
@@ -430,10 +451,10 @@ export default function AddCarPage() {
                     <FormItem>
                       <FormLabel>Nombre de places</FormLabel>
                       <FormControl>
-                        <Input
-                          type="number"
+                        <Input 
+                          type="number" 
                           placeholder="5"
-                          {...field}
+                          {...field} 
                           disabled={isSubmitting || !canAddCar}
                         />
                       </FormControl>
@@ -448,10 +469,10 @@ export default function AddCarPage() {
                     <FormItem>
                       <FormLabel>Nombre de portes</FormLabel>
                       <FormControl>
-                        <Input
-                          type="number"
+                        <Input 
+                          type="number" 
                           placeholder="5"
-                          {...field}
+                          {...field} 
                           disabled={isSubmitting || !canAddCar}
                         />
                       </FormControl>
@@ -534,41 +555,41 @@ export default function AddCarPage() {
                 render={() => (
                   <FormItem>
                     <div className="grid grid-cols-2 gap-3">
-                      {carFeatures.map((feature) => (
-                        <FormField
-                          key={feature.id}
-                          control={form.control}
-                          name="features"
-                          render={({ field }) => {
-                            return (
+                  {carFeatures.map((feature) => (
+                    <FormField
+                      key={feature.id}
+                      control={form.control}
+                      name="features"
+                      render={({ field }) => {
+                        return (
                               <FormItem
                                 key={feature.id}
                                 className="flex flex-row items-start space-x-3 space-y-0"
                               >
-                                <FormControl>
-                                  <Checkbox
-                                    checked={field.value?.includes(feature.id)}
-                                    onCheckedChange={(checked) => {
-                                      return checked
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value?.includes(feature.id)}
+                                onCheckedChange={(checked) => {
+                                  return checked
                                         ? field.onChange([...field.value || [], feature.id])
                                         : field.onChange(
                                             field.value?.filter(
                                               (value) => value !== feature.id
                                             )
                                           )
-                                    }}
+                                }}
                                     disabled={isSubmitting || !canAddCar}
-                                  />
-                                </FormControl>
+                              />
+                            </FormControl>
                                 <FormLabel className="font-normal cursor-pointer">
                                   {feature.label}
                                 </FormLabel>
-                              </FormItem>
-                            )
-                          }}
-                        />
-                      ))}
-                    </div>
+                          </FormItem>
+                        )
+                      }}
+                    />
+                  ))}
+                </div>
                   </FormItem>
                 )}
               />
@@ -639,7 +660,7 @@ export default function AddCarPage() {
                             mode="single"
                             selected={field.value}
                             onSelect={field.onChange}
-                            disabled={(date) =>
+                            disabled={date => 
                               date < new Date()
                             }
                             initialFocus
@@ -681,9 +702,11 @@ export default function AddCarPage() {
                             mode="single"
                             selected={field.value}
                             onSelect={field.onChange}
-                            disabled={(date) =>
-                              date < new Date() || (form.getValues().availableFrom && date < form.getValues().availableFrom)
-                            }
+                            disabled={date => {
+                              const today = new Date();
+                              const availableFrom = form.getValues().availableFrom;
+                              return date < today || (availableFrom !== undefined && date < availableFrom);
+                            }}
                             initialFocus
                           />
                         </PopoverContent>

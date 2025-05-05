@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dialog"
 import { Check, ChevronDown, Edit, Eye, MoreHorizontal, Search, Shield, Trash, User, X } from "lucide-react"
 import AdminSidebar from "@/components/admin/admin-sidebar"
+import { cn, handleError, formatDate } from "@/lib/utils"
 
 // Mock data for users
 const users = [
@@ -96,6 +97,8 @@ export default function AdminUsersPage() {
   const [selectedTab, setSelectedTab] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [openDialog, setOpenDialog] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   // Filter users based on selected tab and search query
   const filteredUsers = users
@@ -117,6 +120,52 @@ export default function AdminUsersPage() {
         user.id.toLowerCase().includes(query)
       )
     })
+
+  // Mock handler for user verification
+  const handleVerifyUser = async (userId: string) => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      // In production this would be an API call
+      // await userService.verifyUser(userId)
+      
+      // Mock implementation
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // Update local state
+      // This would normally be a refresh API call
+      
+      setLoading(false)
+    } catch (err) {
+      const errorMessage = handleError(err, "Failed to verify user")
+      setError(errorMessage)
+      setLoading(false)
+    }
+  }
+
+  // Mock handler for user suspension
+  const handleSuspendUser = async (userId: string) => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      // In production this would be an API call
+      // await userService.suspendUser(userId)
+      
+      // Mock implementation
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // Update local state
+      // This would normally be a refresh API call
+      
+      setLoading(false)
+    } catch (err) {
+      const errorMessage = handleError(err, "Failed to suspend user")
+      setError(errorMessage)
+      setLoading(false)
+    }
+  }
 
   // Get role badge
   const getRoleBadge = (role: string) => {
@@ -148,12 +197,6 @@ export default function AdminUsersPage() {
       default:
         return <Badge>Inconnu</Badge>
     }
-  }
-
-  // Format date
-  const formatDate = (dateString: string) => {
-    const options: Intl.DateTimeFormatOptions = { day: "numeric", month: "long", year: "numeric" }
-    return new Date(dateString).toLocaleDateString("fr-FR", options)
   }
 
   return (
@@ -304,13 +347,13 @@ export default function AdminUsersPage() {
                                   Modifier
                                 </DropdownMenuItem>
                                 {user.status === "pending" && (
-                                  <DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleVerifyUser(user.id)}>
                                     <Check className="mr-2 h-4 w-4" />
                                     Vérifier
                                   </DropdownMenuItem>
                                 )}
                                 {user.status === "active" && (
-                                  <DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleSuspendUser(user.id)}>
                                     <X className="mr-2 h-4 w-4" />
                                     Suspendre
                                   </DropdownMenuItem>

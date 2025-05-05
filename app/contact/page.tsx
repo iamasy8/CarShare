@@ -1,11 +1,72 @@
+"use client"
+
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Mail, Phone, MapPin, MessageSquare, HelpCircle, Car, AlertTriangle } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+
+// Support ticket categories
+const ticketCategories = [
+  "Question générale",
+  "Problème technique",
+  "Réservation",
+  "Facturation",
+  "Autre"
+];
+
+// Support ticket priorities
+const ticketPriorities = [
+  "Basse",
+  "Normale",
+  "Haute",
+  "Urgente"
+];
 
 export default function ContactPage() {
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    category: "",
+    priority: "Normale",
+    subject: "",
+    message: ""
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<"success" | "error" | null>(null);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setSubmitStatus(null);
+    setErrorMessage("");
+
+    try {
+      // In a real app, this would be an API call
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
+      
+      // Simulate successful submission
+      setSubmitStatus("success");
+      setFormData({
+        name: "",
+        email: "",
+        category: "",
+        priority: "Normale",
+        subject: "",
+        message: ""
+      });
+    } catch (error) {
+      setSubmitStatus("error");
+      setErrorMessage("Une erreur est survenue. Veuillez réessayer.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12">
       <div className="container px-4 md:px-6 mx-auto">
@@ -157,19 +218,83 @@ export default function ContactPage() {
 
           <div className="md:col-span-3 bg-white dark:bg-gray-800 p-6 rounded-lg border">
             <h2 className="text-2xl font-bold mb-6">Envoyez-nous un message</h2>
-            <form className="space-y-4">
+            <CardContent>
+              {submitStatus === "success" ? (
+                <Alert className="bg-green-50 text-green-800 border-green-200">
+                  <AlertDescription>
+                    Votre message a été envoyé avec succès. Nous vous répondrons dans les plus brefs délais.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label htmlFor="name" className="text-sm font-medium">
                     Nom
                   </label>
-                  <Input id="name" placeholder="Votre nom" />
+                      <Input
+                        id="name"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        placeholder="Votre nom"
+                        required
+                      />
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="email" className="text-sm font-medium">
                     Email
                   </label>
-                  <Input id="email" type="email" placeholder="votre@email.com" />
+                      <Input
+                        id="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        placeholder="votre@email.com"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label htmlFor="category" className="text-sm font-medium">
+                        Catégorie
+                      </label>
+                      <Select
+                        value={formData.category}
+                        onValueChange={(value) => setFormData({ ...formData, category: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionnez une catégorie" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ticketCategories.map((category) => (
+                            <SelectItem key={category} value={category}>
+                              {category}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor="priority" className="text-sm font-medium">
+                        Priorité
+                      </label>
+                      <Select
+                        value={formData.priority}
+                        onValueChange={(value) => setFormData({ ...formData, priority: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionnez une priorité" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ticketPriorities.map((priority) => (
+                            <SelectItem key={priority} value={priority}>
+                              {priority}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                 </div>
               </div>
 
@@ -177,34 +302,48 @@ export default function ContactPage() {
                 <label htmlFor="subject" className="text-sm font-medium">
                   Sujet
                 </label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionnez un sujet" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="general">Question générale</SelectItem>
-                    <SelectItem value="reservation">Réservation</SelectItem>
-                    <SelectItem value="technical">Problème technique</SelectItem>
-                    <SelectItem value="billing">Facturation</SelectItem>
-                    <SelectItem value="other">Autre</SelectItem>
-                  </SelectContent>
-                </Select>
+                    <Input
+                      id="subject"
+                      value={formData.subject}
+                      onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                      placeholder="Sujet de votre message"
+                      required
+                    />
               </div>
 
               <div className="space-y-2">
                 <label htmlFor="message" className="text-sm font-medium">
                   Message
                 </label>
-                <Textarea id="message" placeholder="Votre message" rows={5} />
+                    <Textarea
+                      id="message"
+                      value={formData.message}
+                      onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                      placeholder="Votre message"
+                      rows={5}
+                      required
+                    />
               </div>
 
-              <Button type="submit" className="w-full bg-red-600 hover:bg-red-700">
-                Envoyer le message
+                  {submitStatus === "error" && (
+                    <Alert variant="destructive">
+                      <AlertDescription>{errorMessage}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  <Button
+                    type="submit"
+                    className="w-full bg-red-600 hover:bg-red-700"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? "Envoi en cours..." : "Envoyer le message"}
               </Button>
             </form>
+              )}
+            </CardContent>
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }

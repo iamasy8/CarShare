@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Search, Car, MessageSquare, Shield, Star } from "lucide-react"
 import FeaturedCars from "@/components/featured-cars"
 import HowItWorks from "@/components/how-it-works"
+import { Testimonials } from "@/components/testimonials"
 import { cn } from "@/lib/utils"
 
 export default function Home() {
@@ -188,98 +189,7 @@ export default function Home() {
       </section>
 
       {/* Testimonials */}
-      <section className="py-12 bg-background dark:bg-background">
-        <div className="container px-4 md:px-6 mx-auto">
-          <div className="grid gap-6 text-center">
-            <div className="space-y-2">
-              <h2 className="text-3xl font-bold tracking-tighter md:text-4xl">Ce que disent nos utilisateurs</h2>
-              <p className="text-muted-foreground md:text-xl mx-auto max-w-[700px]">
-                Découvrez les expériences de notre communauté
-              </p>
-            </div>
-            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="flex flex-col gap-4 p-6 bg-card dark:bg-card rounded-lg">
-                <div className="flex items-center gap-2">
-                  <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
-                  <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
-                  <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
-                  <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
-                  <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
-                </div>
-                <p className="text-muted-foreground italic">
-                  "J'ai pu louer une voiture rapidement pour un week-end. Le propriétaire était très sympathique et le
-                  processus était simple."
-                </p>
-                <div className="flex items-center gap-4 mt-auto">
-                  <div className="rounded-full bg-muted w-10 h-10 overflow-hidden">
-                    <img
-                      src="/placeholder.svg?height=40&width=40"
-                      alt="Avatar"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div>
-                    <p className="font-medium">Sophie D.</p>
-                    <p className="text-sm text-muted-foreground">Locataire</p>
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-col gap-4 p-6 bg-card dark:bg-card rounded-lg">
-                <div className="flex items-center gap-2">
-                  <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
-                  <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
-                  <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
-                  <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
-                  <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
-                </div>
-                <p className="text-muted-foreground italic">
-                  "En tant que propriétaire, je peux facilement gérer mes annonces et communiquer avec les locataires.
-                  Un excellent moyen de rentabiliser ma voiture."
-                </p>
-                <div className="flex items-center gap-4 mt-auto">
-                  <div className="rounded-full bg-muted w-10 h-10 overflow-hidden">
-                    <img
-                      src="/placeholder.svg?height=40&width=40"
-                      alt="Avatar"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div>
-                    <p className="font-medium">Thomas L.</p>
-                    <p className="text-sm text-muted-foreground">Propriétaire</p>
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-col gap-4 p-6 bg-card dark:bg-card rounded-lg">
-                <div className="flex items-center gap-2">
-                  <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
-                  <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
-                  <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
-                  <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
-                  <Star className="h-5 w-5 text-muted dark:text-muted" />
-                </div>
-                <p className="text-muted-foreground italic">
-                  "J'utilise régulièrement CarShare pour mes déplacements professionnels. C'est plus économique et plus
-                  flexible qu'une agence traditionnelle."
-                </p>
-                <div className="flex items-center gap-4 mt-auto">
-                  <div className="rounded-full bg-muted w-10 h-10 overflow-hidden">
-                    <img
-                      src="/placeholder.svg?height=40&width=40"
-                      alt="Avatar"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div>
-                    <p className="font-medium">Marc B.</p>
-                    <p className="text-sm text-muted-foreground">Locataire</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <Testimonials />
     </div>
   )
 }
