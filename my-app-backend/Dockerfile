@@ -3,15 +3,15 @@ FROM node:latest
 
 WORKDIR /app
 
-# Copy only package.json initially to install dependencies
+# Copy package.json
 COPY package.json ./
 
-# Install Express and create package-lock.json
-RUN npm install express
+# Install dependencies using npm
+RUN npm install
 
 # Copy the rest of your application code
 COPY . .
 
-EXPOSE 3001 # Expose the port your Express app is listening on
+EXPOSE 3001 
 
-CMD [ "node", "server.js" ]
+CMD [ "npm", "start" ]
