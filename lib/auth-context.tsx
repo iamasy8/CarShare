@@ -236,26 +236,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(prev => ({ ...prev, login: true }))
       setError(null)
       
-      // FOR TESTING - No backend needed
-      // Check if email matches one of our mock users
-      if (email === "admin@carshare.com") {
-        setUser(mockUsers.admin)
-        setStatus("authenticated")
-        return mockUsers.admin
-      } else if (email === "superadmin@carshare.com") {
-        setUser(mockUsers.superadmin)
-        setStatus("authenticated")
-        return mockUsers.superadmin
-      } else if (email === "owner@carshare.com") {
-        setUser(mockUsers.owner)
-        setStatus("authenticated")
-        return mockUsers.owner
-      } else if (email === "client@carshare.com") {
-        setUser(mockUsers.client)
-        setStatus("authenticated")
-        return mockUsers.client
-      }
-      
       // Validate inputs
       if (!email || !password) {
         throw new Error("Email and password are required")
@@ -265,47 +245,51 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (email.includes("admin") && !email.endsWith("@carshare.com")) {
         throw new Error("Invalid admin credentials")
       }
-      
-      // Create audit log entry for admin login attempts
+
+      // Create audit log entry for admin login attempts (keep this if needed, adjust for API call if logging backend-side)
       const isAdminAttempt = email.includes("admin")
       if (isAdminAttempt) {
         // In production, this would call the API to log the attempt
         console.log(`Admin login attempt: ${email} at ${new Date().toISOString()}`)
       }
-      
-      // Call authentication service
-      const response = await authService.login(email, password)
-      
-      // Verify and process the user data
-      const userData = response.user
+
+      // Call authentication service to log in (sets the cookie)
+      await authService.login(email, password); // authService.login now returns Promise<void>
+
+      // *** ADD THIS STEP: Fetch user profile after successful login ***
+      const userData = await authService.getProfile();
+      // *************************************************************
+
+      // Verify and process the user data (This part remains largely the same)
+      // const userData = response.user // REMOVE THIS LINE, response from authService.login is void
       
       // Transform dates back into Date objects
       if (userData.subscription) {
         userData.subscription.startDate = new Date(userData.subscription.startDate)
         userData.subscription.nextBillingDate = new Date(userData.subscription.nextBillingDate)
       }
-      
+
       if (userData.sessionExpiry) {
         userData.sessionExpiry = new Date(userData.sessionExpiry)
       }
-      
+
       if (userData.lastLogin) {
         userData.lastLogin = new Date(userData.lastLogin)
       }
-            
-            setUser(userData)
-            setStatus("authenticated")
-      
+
+      setUser(userData)
+      setStatus("authenticated")
+
       return userData
     } catch (err) {
       console.error("Login failed:", err)
       if (err instanceof Error) {
         setError(err.message)
         throw new Error(err.message)
-          } else {
+      } else {
         setError("An unknown error occurred during login")
         throw new Error("An unknown error occurred during login")
-          }
+      }
     } finally {
       setLoading(prev => ({ ...prev, login: false }))
     }

@@ -9,9 +9,9 @@ class AuthService {
   /**
    * Login with email and password
    */
-  async login(email: string, password: string): Promise<LoginResponse> {
-    return apiClient.post<LoginResponse>('/auth/login', { email, password });
-  }
+  async login(email: string, password: string): Promise<void> {
+    await apiClient.post<void>('/auth/login', { email, password });
+  }  
   
   /**
    * Register a new user
