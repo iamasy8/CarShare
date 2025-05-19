@@ -17,4 +17,4 @@ export * from './messages/messageService';
 export * from './users/userService';
 
 // Export subscription service
-export * from './subscriptions/subscriptionService'; 
+export * from './subscriptionService'; 

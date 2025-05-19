@@ -1,6 +1,11 @@
-import { apiClient } from '../apiClient';
+import { apiClient, ApiResponse } from '../apiClient';
 import type { User, RegisterUserData } from '@/lib/auth-context';
+import type { BillingPeriod, SubscriptionTier } from '@/lib/subscription-plans';
 
+interface SubscriptionUpdatePayload {
+  plan_id: number;
+  // billing_period?: string; // Include if your backend needs this separately
+}
 export interface LoginResponse {
   user: User;
 }
@@ -51,6 +56,17 @@ class AuthService {
   async refreshToken(): Promise<void> {
     return apiClient.post<void>('/auth/refresh-token');
   }
+  async updateSubscription (payload: SubscriptionUpdatePayload): Promise<void> {
+  try {
+    await apiClient.put<ApiResponse<User>>('/user/subscription', payload);
+
+     // No need to return anything specific here as the calling context
+     
+  } catch (error) {
+    console.error("authService.updateSubscription failed:", error);
+    throw error; // Re-throw the error for handling in the calling context
+  }
+};
   
   /**
    * Update user profile

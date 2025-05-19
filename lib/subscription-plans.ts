@@ -1,24 +1,30 @@
-export type SubscriptionTier = "basic" | "standard" | "premium"
-export type BillingPeriod = "monthly" | "yearly"
+// lib/api/subscription-plan.ts
+
+// Type Definitions
+export type SubscriptionTier = "basic" | "standard" | "premium";
+export type BillingPeriod = "monthly" | "yearly";
 
 export interface SubscriptionFeature {
-  id: string
-  title: string
-  includedIn: SubscriptionTier[]
-  description?: string
+  id: string;
+  title: string;
+  includedIn: SubscriptionTier[];
+  description?: string;
 }
 
+// This interface describes a subscription plan as understood by the frontend's
+// display logic. Its 'id' is the tier slug.
 export interface SubscriptionPlan {
-  id: SubscriptionTier
-  name: string
-  description: string
-  monthlyPrice: number
-  yearlyPrice: number
-  features: string[] // IDs of features included
-  recommended?: boolean
+  id: SubscriptionTier;
+  name: string;
+  description: string;
+  monthlyPrice: number;
+  yearlyPrice: number;
+  features: string[]; // IDs of features included
+  recommended?: boolean;
 }
 
 // Features available across subscription plans
+// This is static data used by the frontend for display purposes
 export const subscriptionFeatures: SubscriptionFeature[] = [
   {
     id: "listings",
@@ -56,51 +62,39 @@ export const subscriptionFeatures: SubscriptionFeature[] = [
     includedIn: ["standard", "premium"],
     description: "Basic: 15%, Standard: 10%, Premium: 5%",
   },
-]
+];
 
-// Subscription plans
-export const subscriptionPlans: SubscriptionPlan[] = [
-  {
-    id: "basic",
-    name: "Basique",
-    description: "Idéal pour débuter",
-    monthlyPrice: 9.99,
-    yearlyPrice: 99.99,
-    features: ["listings", "commission"],
-  },
-  {
-    id: "standard",
-    name: "Standard",
-    description: "Pour les propriétaires réguliers",
-    monthlyPrice: 19.99,
-    yearlyPrice: 199.99,
-    features: ["listings", "visibility", "analytics", "commission"],
-    recommended: true,
-  },
-  {
-    id: "premium",
-    name: "Premium",
-    description: "Pour les professionnels",
-    monthlyPrice: 39.99,
-    yearlyPrice: 399.99,
-    features: ["listings", "visibility", "featured", "analytics", "support", "commission"],
-  },
-]
+// NOTE: The static 'subscriptionPlans' array is removed from here.
+// Plans will be fetched from the backend via the service.
 
 // Helper functions
 export function getYearlySavings(plan: SubscriptionPlan): number {
-  return Math.round((plan.monthlyPrice * 12 - plan.yearlyPrice) * 100) / 100
+  // You might need to adapt these helpers to work with BackendSubscriptionPlan if you use them with fetched data
+  // or only use them with the local static SubscriptionPlan structure if that's your intention.
+  // If using with backend data, ensure monthlyPrice and yearlyPrice are not null.
+  if (plan.monthlyPrice === null || plan.yearlyPrice === null) {
+      return 0; // Or handle appropriately
+  }
+  return Math.round((plan.monthlyPrice * 12 - plan.yearlyPrice) * 100) / 100;
 }
 
 export function getYearlySavingsPercentage(plan: SubscriptionPlan): number {
-  return Math.round((1 - plan.yearlyPrice / (plan.monthlyPrice * 12)) * 100)
+   if (plan.monthlyPrice === null || plan.yearlyPrice === null || plan.monthlyPrice * 12 === 0) {
+       return 0; // Avoid division by zero
+   }
+  return Math.round((1 - plan.yearlyPrice / (plan.monthlyPrice * 12)) * 100);
 }
 
-export function getPlanFeatures(plan: SubscriptionPlan): SubscriptionFeature[] {
-  return subscriptionFeatures.filter((feature) => plan.features.includes(feature.id))
+// This function still uses the local subscriptionFeatures array
+export function getPlanFeatures(plan: { features: string[] | null }): SubscriptionFeature[] {
+    if (!plan.features) {
+        return [];
+    }
+  return subscriptionFeatures.filter((feature) => plan.features!.includes(feature.id));
 }
 
-export function isFeatureIncluded(featureId: string, planId: SubscriptionTier): boolean {
-  const feature = subscriptionFeatures.find((f) => f.id === featureId)
-  return feature ? feature.includedIn.includes(planId) : false
+// This function also uses the local subscriptionFeatures array
+export function isFeatureIncluded(featureId: string, planTier: SubscriptionTier): boolean {
+  const feature = subscriptionFeatures.find((f) => f.id === featureId);
+  return feature ? feature.includedIn.includes(planTier) : false;
 }

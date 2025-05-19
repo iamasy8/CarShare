@@ -7,6 +7,9 @@ import type { BillingPeriod, SubscriptionTier } from "./subscription-plans"
 import { authService } from "./api/auth/authService"
 import { ApiError } from "./api/apiClient" // Import ApiError
 
+// Import BackendSubscriptionPlan if your backend nests the full plan object
+import { type BackendSubscriptionPlan } from './api/subscriptionService'; // <-- Import this if needed
+
 // Define user types
 export type UserRole = "client" | "owner" | "admin" | "superadmin" | null
 export type UserStatus = "authenticated" | "unauthenticated" | "loading"
@@ -14,10 +17,15 @@ export type AdminPermission = "view" | "edit" | "create" | "delete" | "manage_us
 
 // Keep your interfaces, but ensure they match what your backend returns
 export interface Subscription {
-  tier: SubscriptionTier
-  billingPeriod: BillingPeriod
-  startDate: Date // Or string if backend returns string
-  nextBillingDate: Date // Or string if backend returns string
+  // Include the backend database ID for the plan
+  plan_id: number; // <-- Add this line
+  tier: SubscriptionTier; // <-- Keep if backend returns directly
+  billingPeriod: BillingPeriod; // <-- Keep if backend returns directly
+  // Date properties
+  startDate: Date; // <-- Assume string from backend, parse in fetchUserProfile
+  nextBillingDate?: Date | null; // <-- Assume optional string, parse in fetchUserProfile
+  // If your backend includes a nested 'plan' object with details, add it here:
+  plan?: BackendSubscriptionPlan | null; // <-- Add this if your backend nests the plan details
 }
 
 export interface User {
@@ -69,7 +77,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void> // Returns void now
   register: (userData: RegisterUserData, role: UserRole) => Promise<void> // Returns void now
   logout: () => Promise<void> // Logout is async
-  updateSubscription: (subscription: { tier: SubscriptionTier; billingPeriod: BillingPeriod }) => Promise<void>
+  updateSubscription: (data: { plan_id: number }) => Promise<void>; // <-- Corrected argument type
   updateProfile: (profileData: Partial<User>) => Promise<void>
   clearError: () => void
   isAuthenticated: boolean
@@ -98,7 +106,7 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => {}, // Default login does nothing async
   register: async () => {}, // Default register does nothing async
   logout: async () => {}, // Default logout does nothing async
-  updateSubscription: async () => {}, // Default updateSubscription does nothing async
+  updateSubscription: async ({ plan_id }) => { console.log(`Default updateSubscription called with plan_id: ${plan_id}`); }, // Default updateSubscription does nothing async
   updateProfile: async () => {}, // Default updateProfile does nothing async
   clearError: () => {},
   isAuthenticated: false,
@@ -133,26 +141,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // you need to parse them into Date objects here. Adjust based on your backend's response.
       if (userData) {
          if (userData.lastLogin && typeof userData.lastLogin === 'string') {
-            userData.lastLogin = new Date(userData.lastLogin);
+            (userData as any).lastLogin = new Date(userData.lastLogin); // Cast to allow modification
          }
          if (userData.subscription) {
             if (typeof userData.subscription.startDate === 'string') {
-               userData.subscription.startDate = new Date(userData.subscription.startDate);
+               (userData.subscription as any).startDate = new Date(userData.subscription.startDate); // Cast to allow modification
             }
-            if (typeof userData.subscription.nextBillingDate === 'string') {
-               userData.subscription.nextBillingDate = new Date(userData.subscription.nextBillingDate);
+            if (userData.subscription.nextBillingDate && typeof userData.subscription.nextBillingDate === 'string') {
+               (userData.subscription as any).nextBillingDate = new Date(userData.subscription.nextBillingDate); // Cast to allow modification
             }
-         }
+            // If your nested plan object also has dates you need as Dates, parse them here too
+             if (userData.subscription.plan?.created_at && typeof userData.subscription.plan.created_at === 'string') {
+                 (userData.subscription.plan as any).created_at = new Date(userData.subscription.plan.created_at);
+             }
          // Remove sessionExpiry parsing as it's not needed on frontend
          // if (userData.sessionExpiry && typeof userData.sessionExpiry === 'string') {
          //    userData.sessionExpiry = new Date(userData.sessionExpiry);
          // }
       }
-      // *****************************
-
+      }
       setUser(userData);
       setStatus("authenticated");
-    } catch (err) {
+    } catch(err) {
        // If fetching profile fails (e.g., 401 Unauthorized because session expired or no cookie)
        // then the user is not authenticated.
        console.error("Failed to fetch user profile:", err);
@@ -166,8 +176,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // We just ensure the frontend state is clean.
        } else {
           // Handle other potential errors during fetch (e.g., network issues)
-          setError("Failed to load user data."); // Set a general error message
-          // No need to redirect here, let the API client's interceptor handle 401.
+          const errorMessage = (err as any).message || "Failed to load user data.";
+          setError(errorMessage);// No need to redirect here, let the API client's interceptor handle 401.
        }
     }
   };
@@ -262,12 +272,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Update subscription
    // Assuming your backend /api/user/subscription endpoint updates user data and returns the updated user
-  const updateSubscription = async (subscription: { tier: SubscriptionTier; billingPeriod: BillingPeriod }): Promise<void> => {
+   const updateSubscription = async (data: { plan_id: number }): Promise<void> => { // <-- Corrected argument type
     setLoading(prev => ({ ...prev, updateSubscription: true }));
     setError(null);
     try {
-      // Call subscription update API
-      await authService.updateSubscription(subscription);
+      // Call subscription update API - pass the plan_id
+      await authService.updateSubscription(data); // Pass the data object
 
        // Fetch the updated user profile to refresh context state
        await fetchUserProfile();

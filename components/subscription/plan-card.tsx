@@ -1,83 +1,87 @@
-"use client"
+// components/subscription/plan-card.tsx
 
-import { Check } from "lucide-react"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import {
-  type SubscriptionPlan,
-  type SubscriptionTier,
-  type BillingPeriod,
-  getPlanFeatures,
-  getYearlySavingsPercentage,
-} from "@/lib/subscription-plans"
+// Update imports
+// import { type BillingPeriod, type SubscriptionTier, type SubscriptionPlan, getPlanFeatures, getYearlySavingsPercentage } from "@/lib/subscription-plans";
+import { type BillingPeriod, type SubscriptionTier, getPlanFeatures, getYearlySavingsPercentage } from "@/lib/subscription-plans"; // Import types and helpers
+import { type BackendSubscriptionPlan } from "@/lib/api/subscriptionService"; // Import BackendSubscriptionPlan
 
+
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Check } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+// Update the interface
 interface PlanCardProps {
-  plan: SubscriptionPlan
-  selectedPlan: SubscriptionTier
-  billingPeriod: BillingPeriod
-  onSelect: (plan: SubscriptionTier) => void
+  // Accept BackendSubscriptionPlan instead of SubscriptionPlan
+  plan: BackendSubscriptionPlan;
+  // Accept the selected plan ID (backend ID)
+  selectedPlanId: number | null;
+  // billingPeriod is likely redundant if price is in BackendSubscriptionPlan, but keep for now
+  billingPeriod: BillingPeriod;
+  // The onSelect handler receives the plan object
+  onSelect: (plan: BackendSubscriptionPlan) => void;
 }
 
-export function PlanCard({ plan, selectedPlan, billingPeriod, onSelect }: PlanCardProps) {
-  const isSelected = selectedPlan === plan.id
-  const price = billingPeriod === "monthly" ? plan.monthlyPrice : plan.yearlyPrice
-  const features = getPlanFeatures(plan)
+export function PlanCard({
+  plan,
+  selectedPlanId,
+  billingPeriod,
+  onSelect,
+}: PlanCardProps) {
+
+  // Determine if this card is the selected plan
+  const isSelected = selectedPlanId === plan.backend_id; // Compare backend IDs
+
+
+  // Get the price based on the billing period
+  const price = billingPeriod === "monthly" ? plan.monthlyPrice : plan.yearlyPrice;
+
+  // Get features for this plan (using the helper from subscription-plan.ts)
+  const features = getPlanFeatures({ features: plan.features }); // Pass the features array
+
+  // Get yearly savings percentage (using the helper)
+  // You might need to adapt getYearlySavingsPercentage to work with BackendSubscriptionPlan
+  const yearlySavingsPercentage = plan.monthlyPrice !== null && plan.yearlyPrice !== null
+    ? getYearlySavingsPercentage({ monthlyPrice: plan.monthlyPrice, yearlyPrice: plan.yearlyPrice } as any) // Cast or adapt helper
+    : 0;
+
 
   return (
+    // Use the onClick handler to call onSelect with the plan object
     <Card
-      className={`relative w-full h-full transition-all duration-200 ${
-        isSelected
-          ? "border-2 border-red-500 shadow-md"
-          : "border border-gray-200 hover:border-gray-300 hover:shadow-sm"
-      }`}
+      className={`h-full flex flex-col border-2 ${isSelected ? "border-blue-500" : ""}`}
+      onClick={() => onSelect(plan)}
     >
-      {plan.recommended && (
-        <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-red-600 text-white text-xs font-medium px-3 py-1 rounded-full">
-          Recommandé
-        </div>
-      )}
-      <CardHeader className={`pb-4 ${plan.recommended ? "pt-6" : "pt-4"}`}>
-        <CardTitle className="text-xl font-bold text-center">{plan.name}</CardTitle>
-        <CardDescription className="text-center text-sm mt-1 h-10 flex items-center justify-center">
-          {plan.description}
-        </CardDescription>
+      <CardHeader>
+        <CardTitle className="text-xl font-semibold">{plan.name}</CardTitle>
+        <CardDescription>{plan.description}</CardDescription>
       </CardHeader>
-      <CardContent className="px-6 pb-4 space-y-5">
-        <div className="text-center">
-          <div className="flex items-baseline justify-center">
-            <span className="text-3xl font-bold">{price.toFixed(2)}€</span>
-            <span className="text-sm text-gray-500 ml-1">/{billingPeriod === "monthly" ? "mois" : "an"}</span>
-          </div>
-
-          {billingPeriod === "yearly" && (
-            <div className="text-sm text-green-600 font-medium mt-1">
-              Économisez {getYearlySavingsPercentage(plan)}% avec l'abonnement annuel
-            </div>
-          )}
+      <CardContent className="flex-grow space-y-4">
+        <div className="text-2xl font-bold">
+          {price !== null ? `$${price.toFixed(2)}` : 'N/A'}
+          {billingPeriod === "monthly" ? " / month" : " / year"}
         </div>
-
-        <div className="h-px w-full bg-gray-100 my-4"></div>
-
-        <ul className="space-y-3 min-h-[180px]">
+        {billingPeriod === "yearly" && yearlySavingsPercentage > 0 && (
+          <p className="text-sm text-green-600 font-medium">
+            Save {yearlySavingsPercentage}% annually
+          </p>
+        )}
+        <ul className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
           {features.map((feature) => (
-            <li key={feature.id} className="flex items-start">
-              <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-              <span className="text-sm">{feature.title}</span>
+            <li key={feature.id} className="flex items-center gap-2">
+              <Check className="h-4 w-4 text-green-600" />
+              {feature.title}
             </li>
           ))}
         </ul>
       </CardContent>
-      <CardFooter className="px-6 pt-2 pb-6">
-        <Button
-          onClick={() => onSelect(plan.id)}
-          variant={isSelected ? "default" : "outline"}
-          className={`w-full py-2 ${
-            isSelected ? "bg-red-600 hover:bg-red-700 text-white" : "border-red-600 text-red-600 hover:bg-red-50"
-          }`}
-        >
-          {isSelected ? "Sélectionné" : "Choisir ce plan"}
-        </Button>
+      <CardFooter>
+        {/* The button might not be needed if the whole card is clickable */}
+        {/* But if you keep it, the onClick should also call onSelect(plan) */}
+         {/* <Button onClick={() => onSelect(plan)} disabled={isSelected}>
+             {isSelected ? "Selected" : "Select"}
+         </Button> */}
       </CardFooter>
     </Card>
-  )
+  );
 }
