@@ -2,19 +2,22 @@
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
+// Assuming you still need these types for your User interface
 import type { BillingPeriod, SubscriptionTier } from "./subscription-plans"
 import { authService } from "./api/auth/authService"
+import { ApiError } from "./api/apiClient" // Import ApiError
 
 // Define user types
 export type UserRole = "client" | "owner" | "admin" | "superadmin" | null
 export type UserStatus = "authenticated" | "unauthenticated" | "loading"
 export type AdminPermission = "view" | "edit" | "create" | "delete" | "manage_users" | "manage_admins"
 
+// Keep your interfaces, but ensure they match what your backend returns
 export interface Subscription {
   tier: SubscriptionTier
   billingPeriod: BillingPeriod
-  startDate: Date
-  nextBillingDate: Date
+  startDate: Date // Or string if backend returns string
+  nextBillingDate: Date // Or string if backend returns string
 }
 
 export interface User {
@@ -22,15 +25,16 @@ export interface User {
   name: string
   email: string
   role: "client" | "owner" | "admin" | "superadmin"
-  permissions?: AdminPermission[]
-  avatar: string
-  subscription?: Subscription
+  permissions?: AdminPermission[] // Ensure your backend includes this for admin roles
+  avatar: string | null // Assuming avatar can be null
+  subscription?: Subscription | null // Subscription can be optional and null
   isVerified?: boolean
-  lastLogin?: Date
-  sessionExpiry?: Date
+  lastLogin?: Date | null // lastLogin can be null
+  // sessionExpiry is not needed on the frontend for Sanctum SPA
+  // sessionExpiry?: Date
 }
 
-// User registration data type
+// User registration data type (Keep if needed for frontend registration form)
 export interface RegisterUserData {
   email: string
   password: string
@@ -39,16 +43,16 @@ export interface RegisterUserData {
   [key: string]: any  // For additional fields
 }
 
-// Create interface for admin audit logs
+// Admin audit log interface (Keep if you plan to display these on frontend)
 export interface AdminAuditLog {
   id: number
   adminId: number
   action: string
   targetId?: number
   targetType?: string
-  timestamp: Date
-  ipAddress?: string
-  details?: string
+  timestamp: Date // Or string
+  ipAddress?: string | null
+  details?: string | null
 }
 
 interface AuthContextType {
@@ -58,12 +62,15 @@ interface AuthContextType {
     login: boolean
     register: boolean
     updateSubscription: boolean
+    // Add loading states for other async operations if needed (e.g., profile update)
+    updateProfile: boolean
   }
   error: string | null
-  login: (email: string, password: string) => Promise<User>
-  register: (userData: RegisterUserData, role: UserRole) => Promise<User>
-  logout: () => void
+  login: (email: string, password: string) => Promise<void> // Returns void now
+  register: (userData: RegisterUserData, role: UserRole) => Promise<void> // Returns void now
+  logout: () => Promise<void> // Logout is async
   updateSubscription: (subscription: { tier: SubscriptionTier; billingPeriod: BillingPeriod }) => Promise<void>
+  updateProfile: (profileData: Partial<User>) => Promise<void>
   clearError: () => void
   isAuthenticated: boolean
   isAdmin: boolean
@@ -71,27 +78,28 @@ interface AuthContextType {
   isOwner: boolean
   isClient: boolean
   hasPermission: (permission: AdminPermission) => boolean
-  logAdminAction: (action: string, details?: any) => Promise<void>
-  extendSession: () => Promise<void>
-  checkSessionExpiry: () => boolean
-  updateProfile: (profileData: Partial<User>) => Promise<User>
-  setMockUser: (role: UserRole) => void
+  // logAdminAction: (action: string, details?: any) => Promise<void> // Remove if logging is backend-only
+  // extendSession: () => Promise<void> // Remove - Sanctum session handled by backend/cookies
+  // checkSessionExpiry: () => boolean // Remove - Sanctum session expiry handled by backend/cookies
+  // setMockUser: (role: UserRole) => void // Remove mock user functionality
 }
 
-// Create context with default values
+// Create context with default values (Update defaults to match the new interface)
 const AuthContext = createContext<AuthContextType>({
   user: null,
   status: "unauthenticated",
   loading: {
     login: false,
     register: false,
-    updateSubscription: false
+    updateSubscription: false,
+    updateProfile: false,
   },
   error: null,
-  login: async () => ({ id: 0, name: "", email: "", role: "client", avatar: "" }),
-  register: async () => ({ id: 0, name: "", email: "", role: "client", avatar: "" }),
-  logout: () => {},
-  updateSubscription: async () => {},
+  login: async () => {}, // Default login does nothing async
+  register: async () => {}, // Default register does nothing async
+  logout: async () => {}, // Default logout does nothing async
+  updateSubscription: async () => {}, // Default updateSubscription does nothing async
+  updateProfile: async () => {}, // Default updateProfile does nothing async
   clearError: () => {},
   isAuthenticated: false,
   isAdmin: false,
@@ -99,58 +107,8 @@ const AuthContext = createContext<AuthContextType>({
   isOwner: false,
   isClient: false,
   hasPermission: () => false,
-  logAdminAction: async () => {},
-  extendSession: async () => {},
-  checkSessionExpiry: () => false,
-  updateProfile: async () => ({ id: 0, name: "", email: "", role: "client", avatar: "" }),
-  setMockUser: () => {}
 })
 
-// Mock users for testing
-const mockUsers = {
-  admin: {
-    id: 1,
-    name: "Admin User",
-    email: "admin@carshare.com",
-    role: "admin" as const,
-    avatar: "",
-    permissions: ["view", "edit", "create", "delete", "manage_users"] as AdminPermission[],
-    isVerified: true,
-    lastLogin: new Date(),
-    sessionExpiry: new Date(Date.now() + 1000 * 60 * 60 * 24) // 24 hours from now
-  },
-  superadmin: {
-    id: 2,
-    name: "Super Admin",
-    email: "superadmin@carshare.com",
-    role: "superadmin" as const,
-    avatar: "",
-    permissions: ["view", "edit", "create", "delete", "manage_users", "manage_admins"] as AdminPermission[],
-    isVerified: true,
-    lastLogin: new Date(),
-    sessionExpiry: new Date(Date.now() + 1000 * 60 * 60 * 24)
-    },
-  owner: {
-    id: 3,
-    name: "Car Owner",
-    email: "owner@carshare.com",
-    role: "owner" as const,
-    avatar: "",
-    isVerified: true,
-    lastLogin: new Date(),
-    sessionExpiry: new Date(Date.now() + 1000 * 60 * 60 * 24)
-  },
-  client: {
-    id: 4,
-    name: "Client User",
-    email: "client@carshare.com",
-    role: "client" as const,
-    avatar: "",
-    isVerified: true,
-    lastLogin: new Date(),
-    sessionExpiry: new Date(Date.now() + 1000 * 60 * 60 * 24)
-  }
-}
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null)
@@ -158,379 +116,239 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState({
     login: false,
     register: false,
-    updateSubscription: false
+    updateSubscription: false,
+    updateProfile: false, // Add loading state
   })
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
-  // Check if user is authenticated on mount
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        setStatus("loading")
-        
-        try {
-          // COMMENTED FOR TESTING - NO BACKEND NEEDED
-          // Fetch user profile from the API
-          // const userData = await authService.getProfile()
-          
-          // // Transform dates into Date objects if needed
-          // if (userData.subscription) {
-          //   userData.subscription.startDate = new Date(userData.subscription.startDate)
-          //   userData.subscription.nextBillingDate = new Date(userData.subscription.nextBillingDate)
-          // }
-          
-          // if (userData.sessionExpiry) {
-          //   userData.sessionExpiry = new Date(userData.sessionExpiry)
-          // }
-          
-          // if (userData.lastLogin) {
-          //   userData.lastLogin = new Date(userData.lastLogin)
-          // }
-          
-          // setUser(userData)
-          
-          // UNCOMMENT THIS LINE TO AUTO-LOGIN AS ADMIN FOR TESTING
-          // setUser(mockUsers.admin)
-          
-              setStatus("unauthenticated")
-          } catch (err) {
-          console.error("Failed to validate authentication:", err)
-          setStatus("unauthenticated")
-        }
-      } catch (err) {
-        console.error("Auth check failed:", err)
-        setStatus("unauthenticated")
-        setError("Failed to verify authentication status")
-      }
-    }
-    
-    checkAuth()
-  }, [])
+  // Function to fetch user profile after successful auth or on mount
+  const fetchUserProfile = async () => {
+    try {
+      setStatus("loading"); // Set status to loading while fetching
+      const userData = await authService.getProfile();
 
-  // Mock user setting function for testing
-  const setMockUser = (role: UserRole) => {
-    if (!role || role === null) {
-      setUser(null)
-      setStatus("unauthenticated")
-      return
+      // *** IMPORTANT: Date Parsing ***
+      // If your backend returns dates as strings (e.g., ISO 8601 format),
+      // you need to parse them into Date objects here. Adjust based on your backend's response.
+      if (userData) {
+         if (userData.lastLogin && typeof userData.lastLogin === 'string') {
+            userData.lastLogin = new Date(userData.lastLogin);
+         }
+         if (userData.subscription) {
+            if (typeof userData.subscription.startDate === 'string') {
+               userData.subscription.startDate = new Date(userData.subscription.startDate);
+            }
+            if (typeof userData.subscription.nextBillingDate === 'string') {
+               userData.subscription.nextBillingDate = new Date(userData.subscription.nextBillingDate);
+            }
+         }
+         // Remove sessionExpiry parsing as it's not needed on frontend
+         // if (userData.sessionExpiry && typeof userData.sessionExpiry === 'string') {
+         //    userData.sessionExpiry = new Date(userData.sessionExpiry);
+         // }
+      }
+      // *****************************
+
+      setUser(userData);
+      setStatus("authenticated");
+    } catch (err) {
+       // If fetching profile fails (e.g., 401 Unauthorized because session expired or no cookie)
+       // then the user is not authenticated.
+       console.error("Failed to fetch user profile:", err);
+       setUser(null); // Clear user state
+       setStatus("unauthenticated"); // Set status to unauthenticated
+
+       // Optionally, handle specific API errors
+       if (err instanceof ApiError && err.status === 401) {
+          // The API returned 401, meaning the session is not valid or expired.
+          // The apiClient's response interceptor should already be handling the redirect to login.
+          // We just ensure the frontend state is clean.
+       } else {
+          // Handle other potential errors during fetch (e.g., network issues)
+          setError("Failed to load user data."); // Set a general error message
+          // No need to redirect here, let the API client's interceptor handle 401.
+       }
     }
-    
-    const mockUser = mockUsers[role as keyof typeof mockUsers]
-    setUser(mockUser)
-    setStatus("authenticated")
-    
-    // Redirect based on role
-    if (role === "admin" || role === "superadmin") {
-      router.push("/admin")
-    } else if (role === "owner") {
-      router.push("/owner/dashboard")
-    } else if (role === "client") {
-      router.push("/client/dashboard")
-    }
-  }
+  };
+
+
+  // Check authentication status on mount
+  useEffect(() => {
+     fetchUserProfile();
+  }, []); // Empty dependency array ensures this runs only once on mount
+
+  // --- Authentication Actions ---
 
   // Login function
-  const login = async (email: string, password: string): Promise<User> => {
+  const login = async (email: string, password: string): Promise<void> => {
+    setLoading(prev => ({ ...prev, login: true }));
+    setError(null);
     try {
-      setLoading(prev => ({ ...prev, login: true }))
-      setError(null)
-      
-      // Validate inputs
-      if (!email || !password) {
-        throw new Error("Email and password are required")
-      }
-
-      // Admin login security check - enforce specific admin email format
-      if (email.includes("admin") && !email.endsWith("@carshare.com")) {
-        throw new Error("Invalid admin credentials")
-      }
-
-      // Create audit log entry for admin login attempts (keep this if needed, adjust for API call if logging backend-side)
-      const isAdminAttempt = email.includes("admin")
-      if (isAdminAttempt) {
-        // In production, this would call the API to log the attempt
-        console.log(`Admin login attempt: ${email} at ${new Date().toISOString()}`)
-      }
-
       // Call authentication service to log in (sets the cookie)
       await authService.login(email, password); // authService.login now returns Promise<void>
 
-      // *** ADD THIS STEP: Fetch user profile after successful login ***
-      const userData = await authService.getProfile();
-      // *************************************************************
+      // Fetch user profile after successful login to update context state
+      await fetchUserProfile(); // Use the dedicated fetch function
 
-      // Verify and process the user data (This part remains largely the same)
-      // const userData = response.user // REMOVE THIS LINE, response from authService.login is void
-      
-      // Transform dates back into Date objects
-      if (userData.subscription) {
-        userData.subscription.startDate = new Date(userData.subscription.startDate)
-        userData.subscription.nextBillingDate = new Date(userData.subscription.nextBillingDate)
-      }
-
-      if (userData.sessionExpiry) {
-        userData.sessionExpiry = new Date(userData.sessionExpiry)
-      }
-
-      if (userData.lastLogin) {
-        userData.lastLogin = new Date(userData.lastLogin)
-      }
-
-      setUser(userData)
-      setStatus("authenticated")
-
-      return userData
+      // No need to return user data here, the state is updated via setUser
+      // The calling component can check the isAuthenticated/user state
     } catch (err) {
-      console.error("Login failed:", err)
+      console.error("Login failed:", err);
+      setUser(null); // Ensure user state is null on login failure
+      setStatus("unauthenticated"); // Ensure status is unauthenticated on login failure
+
       if (err instanceof Error) {
-        setError(err.message)
-        throw new Error(err.message)
+        setError(err.message);
       } else {
-        setError("An unknown error occurred during login")
-        throw new Error("An unknown error occurred during login")
+        setError("An unknown error occurred during login");
       }
+      throw err; // Re-throw the error so the calling component can handle it (e.g., display error message)
     } finally {
-      setLoading(prev => ({ ...prev, login: false }))
+      setLoading(prev => ({ ...prev, login: false }));
     }
-  }
+  };
 
   // Register function
-  const register = async (userData: RegisterUserData, role: UserRole = "client"): Promise<User> => {
+  // Assuming your backend /api/register also sets the session cookie and returns user data
+  const register = async (userData: RegisterUserData, role: UserRole = "client"): Promise<void> => {
+    setLoading(prev => ({ ...prev, register: true }));
+    setError(null);
     try {
       if (role === null) {
-        throw new Error("Invalid role specified")
-      }
-      
-      setLoading(prev => ({ ...prev, register: true }))
-      setError(null)
-      
-      // Basic validation
-      if (!userData.email || !userData.password) {
-        throw new Error("Email and password are required")
+        throw new Error("Invalid role specified");
       }
 
-      // FOR TESTING - No backend needed
-      // Create a mock user based on the registration data
-      const mockUser: User = {
-              id: Math.floor(Math.random() * 1000) + 10,
-              name: `${userData.firstName} ${userData.lastName}`,
-              email: userData.email,
-              role: role as "client" | "owner" | "admin" | "superadmin",
-        avatar: "",
-        isVerified: false, // Changed from true to false as new users shouldn't be verified automatically
-        lastLogin: new Date(),
-        sessionExpiry: new Date(Date.now() + 1000 * 60 * 60 * 24)
-      }
-      
-      setUser(mockUser)
-      setStatus("authenticated")
-      return mockUser
-      
-      // COMMENTED FOR TESTING - No backend needed
-      // Call the register API
-      // const response = await authService.register(userData, role as string)
-      
-      // // Process user data
-      // const user = response.user
-      
-      // // Transform dates back into Date objects
-      // if (user.subscription) {
-      //   user.subscription.startDate = new Date(user.subscription.startDate)
-      //   user.subscription.nextBillingDate = new Date(user.subscription.nextBillingDate)
-      // }
-      
-      // setUser(user)
-      // setStatus("authenticated")
-      
-      // return user
+      // Call the register API (Assuming it sets cookie and returns user data)
+      await authService.register(userData, role as string); // authService.register now returns Promise<void>
+
+       // Fetch user profile after successful registration to update context state
+      await fetchUserProfile(); // Use the dedicated fetch function
+
+      // No need to return user data here
     } catch (err) {
-      console.error("Registration failed:", err)
+      console.error("Registration failed:", err);
+       setUser(null); // Ensure user state is null on registration failure
+      setStatus("unauthenticated"); // Ensure status is unauthenticated on registration failure
       if (err instanceof Error) {
-        setError(err.message)
-        throw new Error(err.message)
+        setError(err.message);
       } else {
-        setError("An unknown error occurred during registration")
-        throw new Error("An unknown error occurred during registration")
+        setError("An unknown error occurred during registration");
       }
+       throw err; // Re-throw the error
     } finally {
-      setLoading(prev => ({ ...prev, register: false }))
+      setLoading(prev => ({ ...prev, register: false }));
     }
-  }
+  };
 
   // Logout function
-  const logout = async () => {
+  const logout = async (): Promise<void> => {
     try {
-      await authService.logout()
+      await authService.logout(); // Call the backend logout endpoint
+      // On successful backend logout, the session cookie is removed by the browser.
     } catch (err) {
-      console.error("Logout API call failed:", err)
-      // Continue with cleanup even if API call fails
+      console.error("Logout API call failed:", err);
+      // Continue with frontend cleanup even if API call fails (e.g., network issue during logout)
+    } finally {
+       // Always clear frontend state on logout attempt (success or failure)
+       setUser(null);
+       setStatus("unauthenticated");
+       setError(null); // Clear any previous errors
+
+       // Redirect to homepage or login page
+       router.push("/"); // Or your preferred logout redirect path
     }
-    
-      setUser(null)
-      setStatus("unauthenticated")
-    
-    // Redirect to homepage
-      router.push("/")
-  }
+  };
 
   // Update subscription
+   // Assuming your backend /api/user/subscription endpoint updates user data and returns the updated user
   const updateSubscription = async (subscription: { tier: SubscriptionTier; billingPeriod: BillingPeriod }): Promise<void> => {
+    setLoading(prev => ({ ...prev, updateSubscription: true }));
+    setError(null);
     try {
-      setLoading(prev => ({ ...prev, updateSubscription: true }))
-      setError(null)
-      
-      // Call subscription update API through the subscription service
-      // const updatedUser = await subscriptionService.updateSubscription(subscription)
-      
-      // For now, just update the user state directly
-      // This should be replaced with an actual API call when backend is ready
-      if (user) {
-            const updatedUser = { 
-              ...user, 
-              subscription: {
-            ...subscription,
-                startDate: new Date(),
-            nextBillingDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-              } 
-            }
-            
-            setUser(updatedUser)
-      }
-      
+      // Call subscription update API
+      await authService.updateSubscription(subscription);
+
+       // Fetch the updated user profile to refresh context state
+       await fetchUserProfile();
+
     } catch (err) {
-      console.error("Failed to update subscription:", err)
-      if (err instanceof Error) {
-        setError(err.message)
-        throw new Error(err.message)
+      console.error("Failed to update subscription:", err);
+       if (err instanceof Error) {
+        setError(err.message);
       } else {
-        setError("An unknown error occurred while updating subscription")
-        throw new Error("An unknown error occurred while updating subscription")
+        setError("An unknown error occurred while updating subscription");
       }
+      throw err;
     } finally {
-      setLoading(prev => ({ ...prev, updateSubscription: false }))
+      setLoading(prev => ({ ...prev, updateSubscription: false }));
+    }
+  };
+
+   // Update user profile
+   // Assuming your backend /api/user endpoint updates user data and returns the updated user
+  const updateProfile = async (profileData: Partial<User>): Promise<void> => {
+    setLoading(prev => ({ ...prev, updateProfile: true }));
+    setError(null);
+    try {
+      // Call the profile update API
+      await authService.updateProfile(profileData);
+
+       // Fetch the updated user profile to refresh context state
+       await fetchUserProfile();
+
+    } catch (err) {
+      console.error("Profile update failed:", err);
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("An unknown error occurred while updating profile");
+      }
+       throw err;
+    } finally {
+      setLoading(prev => ({ ...prev, updateProfile: false }));
     }
   }
+
 
   const clearError = () => setError(null)
 
-  // Check if session is expired
-  const checkSessionExpiry = (): boolean => {
-    if (!user?.sessionExpiry) return false
-    
-    const now = new Date()
-    const isExpired = now > user.sessionExpiry
-    
-    if (isExpired) {
-      // Trigger logout automatically
-      logout()
-    }
-    
-    return isExpired
-  }
 
-  // Log admin actions
-  const logAdminAction = async (action: string, details: any = {}): Promise<void> => {
-    if (!user || (user.role !== "admin" && user.role !== "superadmin")) {
-      return
-    }
-    
-    try {
-      // In production, this would call the API to log admin actions
-      console.log(`Admin action: ${action} by ${user.email} at ${new Date().toISOString()}`, details)
-      
-      // const response = await api.post('/admin/audit-log', {
-      //   action,
-      //   details: JSON.stringify(details),
-      // })
-    } catch (error) {
-      console.error("Failed to log admin action:", error)
-    }
-  }
+  // --- Derived States and Helper Functions ---
 
-  // Extend session
-  const extendSession = async (): Promise<void> => {
-    if (!user) return
-    
-    try {
-      // Call token refresh API
-      await authService.refreshToken()
-      
-      // Update session expiry with a configurable duration
-      const SESSION_DURATION_MS = 60 * 60 * 1000 // 1 hour in milliseconds
-      const extendedUser = {
-        ...user,
-        sessionExpiry: new Date(Date.now() + SESSION_DURATION_MS)
-      }
-      
-      setUser(extendedUser)
-    } catch (error) {
-      console.error("Failed to extend session:", error)
-      // If refresh token fails, log the user out
-      logout()
-    }
-  }
-  
-  // Update user profile
-  const updateProfile = async (profileData: Partial<User>): Promise<User> => {
-    try {
-      setError(null)
-      
-      // Call the profile update API
-      const updatedUser = await authService.updateProfile(profileData)
-      
-      // Transform dates back into Date objects
-      if (updatedUser.subscription) {
-        updatedUser.subscription.startDate = new Date(updatedUser.subscription.startDate)
-        updatedUser.subscription.nextBillingDate = new Date(updatedUser.subscription.nextBillingDate)
-      }
-      
-      if (updatedUser.sessionExpiry) {
-        updatedUser.sessionExpiry = new Date(updatedUser.sessionExpiry)
-      }
-      
-      if (updatedUser.lastLogin) {
-        updatedUser.lastLogin = new Date(updatedUser.lastLogin)
-    }
-    
-    setUser(updatedUser)
-      
-      return updatedUser
-    } catch (err) {
-      console.error("Profile update failed:", err)
-      if (err instanceof Error) {
-        setError(err.message)
-        throw new Error(err.message)
-      } else {
-        setError("An unknown error occurred while updating profile")
-        throw new Error("An unknown error occurred while updating profile")
-      }
-    }
-  }
-
-  // Check permissions for admin users
+  // Check permissions for admin users (Keep if needed for frontend UI gating)
   const hasPermission = (permission: AdminPermission): boolean => {
-    if (!user) return false
-    
+    // Permissions only apply to authenticated admin/superadmin users
+    if (!user || (user.role !== "admin" && user.role !== "superadmin")) {
+      return false;
+    }
+
     // Superadmin has all permissions
-    if (user.role === "superadmin") return true
-    
-    // Regular admin has permissions based on their assigned permissions
+    if (user.role === "superadmin") {
+      return true;
+    }
+
+    // Regular admin has permissions based on their assigned permissions array
     if (user.role === "admin" && user.permissions) {
       // Normalize permission name to handle case differences
-      const normalizedPermission = permission.toLowerCase()
-      return user.permissions.some(p => p.toLowerCase() === normalizedPermission)
-  }
-    
-    return false
+      const normalizedPermission = permission.toLowerCase();
+      return user.permissions.some(p => p.toLowerCase() === normalizedPermission);
+    }
+
+    return false; // Default to no permission
   }
 
   // Calculate derived states
-  const isAuthenticated = status === "authenticated" && user !== null
-  const isAdmin = isAuthenticated && (user?.role === "admin" || user?.role === "superadmin")
-  const isSuperAdmin = isAuthenticated && user?.role === "superadmin"
-  const isOwner = isAuthenticated && user?.role === "owner"
-  const isClient = isAuthenticated && user?.role === "client"
+  // isAuthenticated is true if status is authenticated AND user object exists
+  const isAuthenticated = status === "authenticated" && user !== null;
+  // Role checks rely on isAuthenticated and the user's role property
+  const isAdmin = isAuthenticated && (user?.role === "admin" || user?.role === "superadmin");
+  const isSuperAdmin = isAuthenticated && user?.role === "superadmin";
+  const isOwner = isAuthenticated && user?.role === "owner";
+  const isClient = isAuthenticated && user?.role === "client";
+
+  // Remove checkSessionExpiry, extendSession, logAdminAction (if handled backend-only), setMockUser
+
 
   return (
     <AuthContext.Provider
@@ -543,6 +361,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         register,
         logout,
         updateSubscription,
+        updateProfile,
         clearError,
         isAuthenticated,
         isAdmin,
@@ -550,11 +369,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         isOwner,
         isClient,
         hasPermission,
-        logAdminAction,
-        extendSession,
-        checkSessionExpiry,
-        updateProfile,
-        setMockUser
+        // logAdminAction, // Remove if removed from interface
+        // extendSession, // Remove
+        // checkSessionExpiry, // Remove
+        // setMockUser, // Remove
       }}
     >
       {children}

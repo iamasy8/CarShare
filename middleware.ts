@@ -49,7 +49,7 @@ export function middleware(request: NextRequest) {
   // Replace 'your_laravel_session_cookie_name' with the actual name of your session cookie.
   // You can find this in your browser's developer tools after logging in.
   // It's often derived from your APP_NAME (e.g., 'my_app_name_session').
-const isAuthenticated = request.cookies.has('3000-firebase-carshare-1747136158592-cluster-6yc4gb53jczovun3dxlsjzjahs.cloudworkstations.dev');
+const isAuthenticated = request.cookies.has('localhost');
   // -----------------------------------------
 
   // Allow access to explicitly defined public paths

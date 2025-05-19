@@ -6,7 +6,7 @@ export interface ApiResponse<T> {
   success: boolean;
 }
 
-class ApiError extends Error {
+export class ApiError extends Error {
   status: number;
   data: any;
   
@@ -21,7 +21,7 @@ class ApiError extends Error {
 export default class ApiClient {
   private client: AxiosInstance;
   
-  constructor(baseURL: string = process.env.NEXT_PUBLIC_API_URL || '/api') {
+  constructor(baseURL: string = process.env.NEXT_PUBLIC_API_URL || '/not working') {
     this.client = axios.create({
       baseURL,
       headers: {
