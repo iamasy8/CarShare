@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { useAuth } from "@/lib/auth-context"; // Import useAuth
 import { Search, Car, MessageSquare, Shield, Star } from "lucide-react"
 import FeaturedCars from "@/components/featured-cars"
 import HowItWorks from "@/components/how-it-works"
@@ -9,6 +12,9 @@ import HeroCarousel from "@/components/hero-carousel"
 import AnimatedText from "@/components/animated-text"
 
 export default function Home() {
+  const { isAuthenticated, loading } = useAuth();
+
+  // The main div is already correctly wrapped in return (...)
   return (
     <div className="flex flex-col min-h-screen">
       {/* Hero Section */}
@@ -32,22 +38,26 @@ export default function Home() {
                   </p>
                 </AnimatedText>
               </div>
-              <AnimatedText delay={400}>
-                <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                  <Button asChild size="lg" className="bg-white text-red-600 hover:bg-gray-100">
-                    <Link href="/search">
-                      Trouver une voiture
-                      <Search className="ml-2 h-4 w-4" />
-                    </Link>
-                  </Button>
-                  <Button asChild size="lg" variant="outline" className="border-white text-red-600 hover:bg-white/20 hover:text-white">
-                    <Link href="/register?type=owner">
-                      Publier ma voiture
-                      <Car className="ml-2 h-4 w-4" />
-                    </Link>
-                  </Button>
-                </div>
-              </AnimatedText>
+              {/* Conditional rendering for Login/Signup buttons */}
+              {/* Only show if not authenticated and initial loading is complete */}
+              {!isAuthenticated && !loading.initial && ( 
+                <AnimatedText delay={400}>
+                  <div className="flex flex-col gap-2 min-[400px]:flex-row">
+                    <Button asChild size="lg" className="bg-white text-red-600 hover:bg-gray-100">
+                      <Link href="/login"> {/* Link to Login page */}
+                        Connexion
+                        <Search className="ml-2 h-4 w-4" />
+                      </Link>
+                    </Button>
+                    <Button asChild size="lg" variant="outline" className="border-white text-red-600 hover:bg-white/20 hover:text-white">
+                      <Link href="/register?type=owner">
+                        S'inscrire {/* Text for Signup button */}
+                        <Car className="ml-2 h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </div>
+                </AnimatedText>
+                )}
             </div>
             <div className="relative lg:block">
               <HeroCarousel />

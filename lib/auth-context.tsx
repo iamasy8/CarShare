@@ -67,6 +67,7 @@ interface AuthContextType {
   user: User | null
   status: UserStatus
   loading: {
+    initial: boolean; // <-- Add initial loading state
     login: boolean
     register: boolean
     updateSubscription: boolean
@@ -95,8 +96,9 @@ interface AuthContextType {
 // Create context with default values (Update defaults to match the new interface)
 const AuthContext = createContext<AuthContextType>({
   user: null,
-  status: "unauthenticated",
+  status: "loading",
   loading: {
+    initial: true, // <-- Set initial loading to true in context default
     login: false,
     register: false,
     updateSubscription: false,
@@ -120,8 +122,9 @@ const AuthContext = createContext<AuthContextType>({
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null)
-  const [status, setStatus] = useState<UserStatus>("unauthenticated")
+  const [status, setStatus] = useState<UserStatus>("loading")
   const [loading, setLoading] = useState({
+    initial: true, // <-- Initial state for initial loading is true
     login: false,
     register: false,
     updateSubscription: false,
@@ -133,7 +136,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Function to fetch user profile after successful auth or on mount
   const fetchUserProfile = async () => {
     try {
-      setStatus("loading"); // Set status to loading while fetching
       const userData = await authService.getProfile();
 
       // *** IMPORTANT: Date Parsing ***
@@ -179,6 +181,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const errorMessage = (err as any).message || "Failed to load user data.";
           setError(errorMessage);// No need to redirect here, let the API client's interceptor handle 401.
        }
+    }finally {
+       // *** Crucially, set initial loading to false after fetch completes ***
+       setLoading(prev => ({ ...prev, initial: false }));
     }
   };
 
@@ -349,15 +354,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }
 
   // Calculate derived states
-  // isAuthenticated is true if status is authenticated AND user object exists
   const isAuthenticated = status === "authenticated" && user !== null;
-  // Role checks rely on isAuthenticated and the user's role property
   const isAdmin = isAuthenticated && (user?.role === "admin" || user?.role === "superadmin");
   const isSuperAdmin = isAuthenticated && user?.role === "superadmin";
   const isOwner = isAuthenticated && user?.role === "owner";
   const isClient = isAuthenticated && user?.role === "client";
 
-  // Remove checkSessionExpiry, extendSession, logAdminAction (if handled backend-only), setMockUser
+ // Remove checkSessionExpiry, extendSession, logAdminAction (if handled backend-only), setMockUser
 
 
   return (
