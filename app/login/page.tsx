@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Car, Loader2 } from "lucide-react"
-import { useAuth } from "@/lib/auth-context"
+import { useAuth } from "@/lib/auth-context" // Use the login function from AuthContext
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Checkbox } from "@/components/ui/checkbox"
 
@@ -17,16 +17,19 @@ export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get("redirectTo") || ""
-  const { login } = useAuth()
+
+  // Get user, login function, and the loading state object from AuthContext
+  const { user, login, loading } = useAuth() // Get user, login, and loading object
+
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [rememberMe, setRememberMe] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isSubmittingForm, setIsSubmittingForm] = useState(false) // Renamed for clarity: local form submission state
   const [error, setError] = useState("")
 
   // Check if there's a pre-filled role for demo purposes
   const role = searchParams.get("role") || ""
-  
+
   // Set pre-filled demo credentials if role is provided
   useEffect(() => {
     if (role === "owner") {
@@ -38,50 +41,66 @@ export default function LoginPage() {
     }
   }, [role])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    
-    // Basic validation
-    if (!email.trim()) {
-      setError("Veuillez saisir votre email.")
-      return
-    }
-    
-    if (!password) {
-      setError("Veuillez saisir votre mot de passe.")
-      return
-    }
-    
-    setIsLoading(true)
+  // useEffect to handle redirection after user state updates
+  useEffect(() => {
+    if (user) { // Check if the user object is available (meaning authentication was successful)
+      // Once user is set, stop the local form submitting state
+      setIsSubmittingForm(false);
 
-    try {
-      const user = await login(email, password)
-
-      // If remember me is checked, we could set a longer expiration for the token
-      // For this demo, we're just using localStorage which doesn't expire
-
-      // Redirect based on user role or to the requested page - block admin users at normal login page
       if (redirectTo) {
         router.push(redirectTo)
       } else if (user.role === "admin") {
-        // Redirect to admin login path
-        router.push("/login/admin")
+        // Redirect to admin login path (or admin dashboard if already logged in)
+        router.push("/login/admin") // Or wherever your admin login/dashboard is
       } else if (user.role === "owner") {
         router.push("/owner/dashboard")
       } else {
         router.push("/") // Default for clients
       }
+    }
+  }, [user, redirectTo, router]) // Depend on user, redirectTo, and router
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError("")
+
+    // Basic validation
+    if (!email.trim()) {
+      setError("Veuillez saisir votre email.")
+      return
+    }
+
+    if (!password) {
+      setError("Veuillez saisir votre mot de passe.")
+      return
+    }
+
+    setIsSubmittingForm(true) // Start local form submitting state
+
+    try {
+      // Call the login function from AuthContext - AuthContext handles fetching user and setting state
+      await login(email, password)
+
+      // The useEffect will handle redirection upon successful login and user state update.
+      // We don't set isSubmittingForm to false here because the useEffect
+      // will do it once the user is set, which happens after the login
+      // and fetchUserProfile calls complete.
+
     } catch (err) {
+      console.error("Login form submission failed:", err); // Log the error
       if (err instanceof Error) {
         setError(err.message || "Email ou mot de passe incorrect.")
       } else {
         setError("Email ou mot de passe incorrect.")
       }
-    } finally {
-      setIsLoading(false)
+      setIsSubmittingForm(false) // Stop local form submitting state on error
     }
   }
+
+
+  // Adjust the disabled state of the button to consider BOTH local and auth context loading states
+  const isButtonDisabled = isSubmittingForm || loading.login;
+
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12">
@@ -141,17 +160,17 @@ export default function LoginPage() {
                 />
               </div>
               <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="remember" 
+                <Checkbox
+                  id="remember"
                   checked={rememberMe}
-                  onCheckedChange={(checked) => setRememberMe(!!checked)} 
+                  onCheckedChange={(checked) => setRememberMe(!!checked)}
                 />
                 <Label htmlFor="remember" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                   Se souvenir de moi
                 </Label>
               </div>
-              <Button type="submit" className="w-full bg-red-600 hover:bg-red-700" disabled={isLoading}>
-                {isLoading ? (
+              <Button type="submit" className="w-full bg-red-600 hover:bg-red-700" disabled={isButtonDisabled}>
+                {isButtonDisabled ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Connexion en cours...

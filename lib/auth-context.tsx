@@ -71,7 +71,7 @@ interface AuthContextType {
     login: boolean
     register: boolean
     updateSubscription: boolean
-    // Add loading states for other async operations if needed (e.g., profile update)
+    profile: boolean; // <-- Add the profile loading state here
     updateProfile: boolean
   }
   error: string | null
@@ -103,6 +103,7 @@ const AuthContext = createContext<AuthContextType>({
     register: false,
     updateSubscription: false,
     updateProfile: false,
+    profile: false, // <-- ADD THIS LINE: Add the profile property to the default loading object
   },
   error: null,
   login: async () => {}, // Default login does nothing async
@@ -123,69 +124,58 @@ const AuthContext = createContext<AuthContextType>({
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null)
   const [status, setStatus] = useState<UserStatus>("loading")
-  const [loading, setLoading] = useState({
+  const [loading, setLoading] =useState<AuthContextType['loading']>({
     initial: true, // <-- Initial state for initial loading is true
     login: false,
     register: false,
     updateSubscription: false,
     updateProfile: false, // Add loading state
+    profile: true, // <-- ADD THIS LINE: Initialize profile loading state
   })
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
   // Function to fetch user profile after successful auth or on mount
   const fetchUserProfile = async () => {
+    setLoading(prev => ({ ...prev, profile: true })); // Set profile loading to true
     try {
-      const userData = await authService.getProfile();
+      const userData = await authService.getProfile(); // This call should handle the cookie check
 
-      // *** IMPORTANT: Date Parsing ***
-      // If your backend returns dates as strings (e.g., ISO 8601 format),
-      // you need to parse them into Date objects here. Adjust based on your backend's response.
       if (userData) {
-         if (userData.lastLogin && typeof userData.lastLogin === 'string') {
-            (userData as any).lastLogin = new Date(userData.lastLogin); // Cast to allow modification
-         }
-         if (userData.subscription) {
-            if (typeof userData.subscription.startDate === 'string') {
-               (userData.subscription as any).startDate = new Date(userData.subscription.startDate); // Cast to allow modification
-            }
-            if (userData.subscription.nextBillingDate && typeof userData.subscription.nextBillingDate === 'string') {
-               (userData.subscription as any).nextBillingDate = new Date(userData.subscription.nextBillingDate); // Cast to allow modification
-            }
-            // If your nested plan object also has dates you need as Dates, parse them here too
-             if (userData.subscription.plan?.created_at && typeof userData.subscription.plan.created_at === 'string') {
-                 (userData.subscription.plan as any).created_at = new Date(userData.subscription.plan.created_at);
-             }
-         // Remove sessionExpiry parsing as it's not needed on frontend
-         // if (userData.sessionExpiry && typeof userData.sessionExpiry === 'string') {
-         //    userData.sessionExpiry = new Date(userData.sessionExpiry);
-         // }
+        // User data received, they are authenticated
+        // ... (date parsing logic)
+        setUser(userData);
+        setStatus("authenticated"); // Set status to "authenticated" on success
+      } else {
+        // No user data received, they are not authenticated
+        console.log("No user data received, setting status to unauthenticated."); // Add logging
+        setUser(null);
+        setStatus("unauthenticated"); // Set status to "unauthenticated" if no user data
       }
-      }
-      setUser(userData);
-      setStatus("authenticated");
     } catch(err) {
        // If fetching profile fails (e.g., 401 Unauthorized because session expired or no cookie)
-       // then the user is not authenticated.
-       console.error("Failed to fetch user profile:", err);
+       console.error("Failed to fetch user profile:", err); // Add logging
        setUser(null); // Clear user state
-       setStatus("unauthenticated"); // Set status to unauthenticated
+       setStatus("unauthenticated"); // Set status to "unauthenticated" on error
 
        // Optionally, handle specific API errors
        if (err instanceof ApiError && err.status === 401) {
-          // The API returned 401, meaning the session is not valid or expired.
+          console.error("API returned 401, unauthenticated."); // Add logging
           // The apiClient's response interceptor should already be handling the redirect to login.
           // We just ensure the frontend state is clean.
        } else {
-          // Handle other potential errors during fetch (e.g., network issues)
+          // Handle other potential errors
           const errorMessage = (err as any).message || "Failed to load user data.";
-          setError(errorMessage);// No need to redirect here, let the API client's interceptor handle 401.
+          setError(errorMessage);
        }
     }finally {
-       // *** Crucially, set initial loading to false after fetch completes ***
-       setLoading(prev => ({ ...prev, initial: false }));
+       // Crucially, set initial loading and profile loading to false after fetch completes
+       console.log("fetchUserProfile completed, setting loading to false."); // Add logging
+       setLoading(prev => ({ ...prev, initial: false, profile: false }));
     }
   };
+
+
 
 
   // Check authentication status on mount

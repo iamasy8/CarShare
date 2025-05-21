@@ -3,7 +3,8 @@
 import React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Car, Menu, Home, Search, Info, HelpCircle } from "lucide-react"
+// Import Loader2 if you decide to show a loading spinner in the header
+import { Car, Menu, Home, Search, Info, HelpCircle, Loader2 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "./theme-toggle"
@@ -14,8 +15,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/s
 
 export default function Header() {
   const pathname = usePathname()
-  const { user, status } = useAuth()
-  const isAuthenticated = status === "authenticated" && user !== null
+  const { user, status, loading } = useAuth()
 
   // Navigation items for all users
   const navItems = [
@@ -25,6 +25,9 @@ export default function Header() {
     { href: "/how-it-works", label: "Comment ça marche", icon: HelpCircle },
   ]
 
+  // We no longer return null early based on loading.profile
+  // The header structure will always be rendered, but its content will be conditional
+
   return (
     <header className="sticky top-0 z-50 bg-background border-b">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
@@ -32,7 +35,8 @@ export default function Header() {
         <Link href="/" className="flex items-center gap-2 text-xl font-bold">
           <Car className="h-6 w-6 text-red-500" />
           <span className="hidden sm:inline">CarShare</span>
-          {isAuthenticated && user && (
+          {/* Show RoleBadge only if authenticated AND user exists */}
+          {status === "authenticated" && user && (
             <RoleBadge role={user.role} className="ml-2" />
           )}
         </Link>
@@ -40,23 +44,29 @@ export default function Header() {
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-4">
           {navItems.map((item) => (
-              <Button 
-                key={item.href} 
-                variant="ghost" 
-                asChild 
+              <Button
+                key={item.href}
+                variant="ghost"
+                asChild
               className={pathname === item.href ? "bg-accent" : ""}
               >
                 <Link href={item.href}>{item.label}</Link>
               </Button>
             ))}
 
-          {isAuthenticated ? (
+          {/* Conditional rendering based on status */}
+          {status === "loading" ? (
+             // Optional: Show a loading indicator while authenticating
+             <div className="ml-4 flex items-center gap-2">
+                <Loader2 className="h-5 w-5 animate-spin text-gray-500" />
+             </div>
+          ) : status === "authenticated" ? (
             <div className="flex items-center gap-2 ml-4">
               <NotificationBell />
                 <ThemeToggle />
               <UserMenu />
               </div>
-          ) : (
+          ) : ( // status === "unauthenticated"
             <div className="flex items-center gap-2 ml-4">
               <ThemeToggle />
                 <Button asChild variant="ghost">
@@ -71,19 +81,25 @@ export default function Header() {
 
         {/* Mobile Navigation */}
         <div className="flex md:hidden items-center gap-2">
-          {isAuthenticated && <NotificationBell />}
+          {/* Show NotificationBell only if authenticated */}
+          {status === "authenticated" && <NotificationBell />}
           <ThemeToggle />
-          
+
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon">
-                <Menu className="h-5 w-5" />
+                {status === "loading" ? (
+                    <Loader2 className="h-5 w-5 animate-spin text-gray-500" />
+                ) : (
+                    <Menu className="h-5 w-5" />
+                )}
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-[80vw] sm:w-[350px] p-0">
               <SheetTitle className="sr-only">Navigation menu</SheetTitle>
               <div className="flex flex-col h-full">
-                {isAuthenticated && user && (
+                {/* Show mobile user info only if authenticated AND user exists */}
+                {status === "authenticated" && user && (
                   <div className="p-4 border-b">
                     <div className="flex items-center gap-3">
                       {user.avatar ? (
@@ -116,8 +132,9 @@ export default function Header() {
                         </Link>
                             </Button>
                           ))}
-                    
-                    {!isAuthenticated && (
+
+                    {/* Only show mobile sign-in/sign-up if status is unauthenticated */}
+                    {status === "unauthenticated" && (
                       <>
                         <Button asChild variant="outline" className="mt-4">
                           <Link href="/login">Se connecter</Link>

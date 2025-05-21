@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
+import { authService } from "@/lib/api/auth/authService"
+
 import { Car, User, AlertCircle, Loader2 } from "lucide-react"
 import { useAuth, type UserRole } from "@/lib/auth-context"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -18,7 +20,6 @@ import { Progress } from "@/components/ui/progress"
 export default function RegisterPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { register } = useAuth()
   const initialRole = (searchParams.get("type") as UserRole) || "client"
   const [activeTab, setActiveTab] = useState<UserRole>(initialRole)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -133,33 +134,32 @@ export default function RegisterPage() {
     setIsSubmitting(true)
 
     try {
-      // Register with the selected role from the active tab
-      const userData = {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        password: formData.password,
-      }
+  // Register with the selected role from the active tab
+  const userData = {
+    name: `${formData.firstName.trim()} ${formData.lastName.trim()}`, // Combine first and last name
+    email: formData.email,
+    password: formData.password,
+  } 
 
-      await register(userData, activeTab)
+  await authService.register(userData, activeTab) // Correctly call the register function from authService
 
-      // Redirect based on role
-      if (activeTab === "owner") {
-        // Redirect to welcome page for subscription selection
-        router.push("/welcome")
-      } else {
-        router.push("/") // Default for clients
-      }
-    } catch (err) {
-      if (err instanceof Error) {
-        setError(`L'inscription a échoué: ${err.message}`)
-      } else {
-        setError("L'inscription a échoué. Veuillez réessayer.")
-      }
-    } finally {
-      setIsSubmitting(false)
-    }
+  // Redirect based on role
+  if (activeTab === "owner") {
+    // Redirect to welcome page for subscription selection
+    router.push("/welcome")
+  } else {
+    router.push("/")// Default for clients 
   }
+} catch (err) {
+  if (err instanceof Error) {
+    setError(`L'inscription a échoué: ${err.message}`) 
+  } else {
+    setError("L'inscription a échoué. Veuillez réessayer.") 
+  }
+} finally {
+  setIsSubmitting(false) 
+}
+}
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12">
