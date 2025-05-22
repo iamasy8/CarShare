@@ -1,4 +1,4 @@
-import axios from "axios";
+  import axios from "axios";
 import type { SubscriptionTier, BillingPeriod } from "./subscription-plans";
 import type { RegisterUserData } from "./auth-context";
 
@@ -10,8 +10,10 @@ export interface ApiResponse<T> {
 }
 
 // Create API client with interceptors
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+console.log('API Base URL:', apiBaseUrl);
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "/api",
+  baseURL: apiBaseUrl,
   headers: {
     "Content-Type": "application/json",
   },
@@ -55,26 +57,29 @@ export interface LoginResponse {
 // Car related types
 export interface Car {
   id: number;
-  title: string;
   make: string;
   model: string;
   year: number;
   type: string;
-  price: number;
+  price?: number; // Legacy field
+  price_per_day: number; // New field from backend
   location: string;
-  seats: number;
-  doors: number;
-  fuel: string;
-  transmission: string;
+  seats?: number;
+  doors?: number;
+  fuel?: string;
+  transmission?: string;
   description: string;
   features: string[];
   images: string[];
+  is_available: boolean; // New field from backend
   availableFrom?: Date;
   availableTo?: Date;
-  ownerId: number;
-  status: "pending" | "approved" | "rejected";
-  createdAt: Date;
-  updatedAt: Date;
+  ownerId?: number;
+  rating?: number;
+  reviews_count?: number;
+  status?: "pending" | "approved" | "rejected";
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 // Booking related types
@@ -96,12 +101,34 @@ export interface Booking {
 export const authService = {
   login: async (email: string, password: string): Promise<LoginResponse> => {
     const response = await api.post<ApiResponse<LoginResponse>>("/auth/login", { email, password });
-    return response.data.data;
+    
+    // Make sure the response data has the expected structure
+    if (response.data && response.data.success && response.data.data) {
+      // Store the token in localStorage for future API requests
+      if (response.data.data.token) {
+        localStorage.setItem("token", response.data.data.token);
+      }
+      return response.data.data;
+    } else {
+      console.error('Unexpected API response format:', response.data);
+      throw new Error('Invalid response format from server');
+    }
   },
   
   register: async (userData: RegisterUserData, role: string): Promise<LoginResponse> => {
     const response = await api.post<ApiResponse<LoginResponse>>("/auth/register", { ...userData, role });
-    return response.data.data;
+    
+    // Make sure the response data has the expected structure
+    if (response.data && response.data.success && response.data.data) {
+      // Store the token in localStorage for future API requests
+      if (response.data.data.token) {
+        localStorage.setItem("token", response.data.data.token);
+      }
+      return response.data.data;
+    } else {
+      console.error('Unexpected API response format:', response.data);
+      throw new Error('Invalid response format from server');
+    }
   },
   
   logout: async (): Promise<void> => {
@@ -126,8 +153,26 @@ export const authService = {
 // Car services
 export const carService = {
   getCars: async (filters?: any): Promise<Car[]> => {
-    const response = await api.get<ApiResponse<Car[]>>("/cars", { params: filters });
-    return response.data.data;
+    try {
+      console.log('Fetching cars with filters:', filters);
+      const response = await api.get<ApiResponse<Car[]>>("/cars", { params: filters });
+      console.log('API Response:', response.data);
+      
+      // Check if response has the correct structure
+      if (response.data && response.data.success && response.data.data) {
+        return response.data.data;
+      } else if (Array.isArray(response.data)) {
+        // Handle case where API returns array directly without wrapper
+        console.log('API returned direct array without wrapper');
+        return response.data;
+      } else {
+        console.error('Unexpected API response format:', response.data);
+        return [];
+      }
+    } catch (error) {
+      console.error('Error fetching cars:', error);
+      return [];
+    }
   },
   
   getCar: async (id: number): Promise<Car> => {

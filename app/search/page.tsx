@@ -10,10 +10,29 @@ import { Heart, Search, Filter, Loader2, Bookmark, History } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { Car, carService } from "@/lib/api"
+import { carService } from "@/lib/api"
 import { carHelpers, handleApiError } from "@/lib/api-helpers"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+
+// Local Car interface that matches the API response
+interface Car {
+  id: number
+  make: string
+  model: string
+  year: number
+  price_per_day: number
+  location: string
+  description: string
+  type: string
+  is_available: boolean
+  features: string[]
+  images: string[]
+  rating?: number
+  reviews_count?: number
+  transmission?: string
+  fuel?: string
+}
 
 // Type definitions
 interface FilterState {
@@ -76,18 +95,18 @@ export default function SearchPage() {
   const [filters, setFilters] = useState<FilterState>({
     priceRange: [
       parseInt(searchParams.get("minPrice") || "0"),
-      parseInt(searchParams.get("maxPrice") || "200")
+      parseInt(searchParams.get("maxPrice") || "1000") // Higher default maximum price to show more cars
     ],
     types: searchParams.get("types")?.split(",") || [],
     makes: searchParams.get("makes")?.split(",") || [],
     features: searchParams.get("features")?.split(",") || [],
     availableOnly: searchParams.get("availableOnly") === "true",
-    sortBy: searchParams.get("sortBy") || "price-asc",
+    sortBy: searchParams.get("sortBy") || "newest", // Default to newest cars
     searchTerm: searchParams.get("q") || "",
     page: parseInt(searchParams.get("page") || "1"),
-    transmission: [],
-    fuelType: [],
-    minRating: 0,
+    transmission: searchParams.get("transmission")?.split(",") || [],
+    fuelType: searchParams.get("fuelType")?.split(",") || [],
+    minRating: parseInt(searchParams.get("minRating") || "0"),
     startDate: undefined,
     endDate: undefined
   });
@@ -111,140 +130,50 @@ export default function SearchPage() {
         if (filters.types.length > 0) queryParams.types = filters.types.join(",");
         if (filters.makes.length > 0) queryParams.makes = filters.makes.join(",");
         if (filters.features.length > 0) queryParams.features = filters.features.join(",");
-        if (filters.availableOnly) queryParams.available = true;
+        if (filters.transmission.length > 0) queryParams.transmission = filters.transmission.join(",");
+        if (filters.fuelType.length > 0) queryParams.fuelType = filters.fuelType.join(",");
+        if (filters.minRating > 0) queryParams.minRating = filters.minRating;
+        if (filters.availableOnly) queryParams.availableOnly = 'true';
         if (filters.searchTerm) queryParams.search = filters.searchTerm;
+        
+        // Add date filters if both dates are set
+        if (filters.startDate && filters.endDate) {
+          queryParams.startDate = filters.startDate.toISOString().split('T')[0];
+          queryParams.endDate = filters.endDate.toISOString().split('T')[0];
+        }
 
-        // In development mode, we'll use mock data
-        if (process.env.NODE_ENV === "development") {
-          // Mock filtering logic for development
-          await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API delay
+        // Fetch cars from API using the carService
+        const response = await carService.getCars(queryParams);
+        
+        // Process response data
+        if (response && response.length > 0) {
+          // Type conversion to match our local Car interface
+          const formattedCars = response.map(car => ({
+            id: car.id,
+            make: car.make,
+            model: car.model,
+            year: car.year,
+            price_per_day: car.price_per_day,
+            location: car.location,
+            description: car.description,
+            type: car.type || '',
+            is_available: typeof car.is_available === 'boolean' ? car.is_available : true,
+            features: Array.isArray(car.features) ? car.features : [],
+            images: Array.isArray(car.images) ? car.images : [],
+            rating: car.rating,
+            reviews_count: car.reviews_count,
+            transmission: car.transmission,
+            fuel: car.fuel
+          }));
           
-          // Mock cars data - in production this would come from the API
-          const mockCars = [
-  {
-    id: 1,
-    title: "Renault Clio",
-    type: "Citadine",
-              make: "Renault",
-              model: "Clio",
-    price: 35,
-              location: "Casablanca, Morocco",
-    features: ["Climatisation", "5 portes", "Bluetooth", "GPS"],
-    year: 2020,
-              status: "approved" as const,
-              seats: 5,
-              doors: 5,
-              fuel: "gasoline",
-              transmission: "automatic",
-              description: "Petite citadine idéale pour la ville",
-              images: ["/placeholder.svg?height=200&width=300"],
-              ownerId: 1,
-              createdAt: new Date(),
-              updatedAt: new Date()
-  },
-  {
-    id: 2,
-    title: "Peugeot 3008",
-    type: "SUV",
-              make: "Peugeot",
-              model: "3008",
-    price: 65,
-              location: "Rabat, Morocco",
-    features: ["Climatisation", "5 portes", "Caméra de recul", "GPS"],
-    year: 2021,
-              status: "approved" as const,
-              seats: 5,
-              doors: 5,
-              fuel: "diesel",
-              transmission: "automatic",
-              description: "SUV familial spacieux et confortable",
-              images: ["/placeholder.svg?height=200&width=300"],
-              ownerId: 2,
-              createdAt: new Date(),
-              updatedAt: new Date()
-  },
-  {
-    id: 3,
-    title: "BMW Série 3",
-    type: "Berline",
-              make: "BMW",
-              model: "Série 3",
-    price: 85,
-              location: "Marrakech, Morocco",
-    features: ["Climatisation", "4 portes", "Sièges cuir", "GPS"],
-    year: 2019,
-              status: "approved" as const,
-              seats: 5,
-              doors: 4,
-              fuel: "gasoline",
-              transmission: "automatic",
-              description: "Berline sportive et élégante",
-              images: ["/placeholder.svg?height=200&width=300"],
-              ownerId: 3,
-              createdAt: new Date(),
-              updatedAt: new Date()
-            },
-          ];
-          
-          // Apply filters to mock data
-          let filteredCars = [...mockCars];
-          
-          // Filter by price
-          filteredCars = filteredCars.filter(car => 
-            car.price >= filters.priceRange[0] && car.price <= filters.priceRange[1]
-          );
-          
-          // Filter by type
-          if (filters.types.length > 0) {
-            filteredCars = filteredCars.filter(car => filters.types.includes(car.type));
-          }
-          
-          // Filter by make
-          if (filters.makes.length > 0) {
-            filteredCars = filteredCars.filter(car => filters.makes.includes(car.make));
-          }
-          
-          // Filter by features
-          if (filters.features.length > 0) {
-            filteredCars = filteredCars.filter(car => 
-              filters.features.some(feature => car.features.includes(feature))
-            );
-          }
-          
-          // Filter by search term
-          if (filters.searchTerm) {
-            const searchLower = filters.searchTerm.toLowerCase();
-            filteredCars = filteredCars.filter(car => 
-              car.title.toLowerCase().includes(searchLower) ||
-              car.make.toLowerCase().includes(searchLower) ||
-              car.model.toLowerCase().includes(searchLower) ||
-              car.location.toLowerCase().includes(searchLower)
-            );
-          }
-          
-          // Sort
-          switch (filters.sortBy) {
-            case "price-asc":
-              filteredCars.sort((a, b) => a.price - b.price);
-              break;
-            case "price-desc":
-              filteredCars.sort((a, b) => b.price - a.price);
-              break;
-            case "newest":
-              filteredCars.sort((a, b) => b.year - a.year);
-              break;
-            default:
-              break;
-          }
-          
-          setCars(filteredCars);
-          setCount(filteredCars.length);
+          setCars(formattedCars);
+          setCount(formattedCars.length);
+          console.log('Found', formattedCars.length, 'cars');
         } else {
-          // In production, call the actual API
-          const response = await carService.getCars(queryParams);
-          setCars(response);
-          // In a real API response, we might also get a total count
-          setCount(response.length);
+          // Handle empty response
+          setCars([]);
+          setCount(0);
+          console.log('No cars found with current filters');
         }
       } catch (err) {
         console.error("Error fetching cars:", err);
@@ -267,15 +196,27 @@ export default function SearchPage() {
     if (filters.types.length > 0) params.set("types", filters.types.join(","));
     if (filters.makes.length > 0) params.set("makes", filters.makes.join(","));
     if (filters.features.length > 0) params.set("features", filters.features.join(","));
+    if (filters.transmission.length > 0) params.set("transmission", filters.transmission.join(","));
+    if (filters.fuelType.length > 0) params.set("fuelType", filters.fuelType.join(","));
+    if (filters.minRating > 0) params.set("minRating", filters.minRating.toString());
     if (filters.availableOnly) params.set("availableOnly", "true");
-    if (filters.sortBy) params.set("sortBy", filters.sortBy);
+    if (filters.sortBy) params.set("sort", filters.sortBy); // Change to 'sort' to match backend
     if (filters.searchTerm) params.set("q", filters.searchTerm);
     if (filters.page > 1) params.set("page", filters.page.toString());
+    
+    // Add date filters if both are set
+    if (filters.startDate) params.set("startDate", filters.startDate.toISOString().split('T')[0]);
+    if (filters.endDate) params.set("endDate", filters.endDate.toISOString().split('T')[0]);
     
     // Update URL without reloading the page
     const url = `/search?${params.toString()}`;
     router.push(url, { scroll: false });
   }, [filters, router]);
+
+  // Helper function to scroll to top
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // Handle checkbox changes
   const handleCheckboxChange = (category: keyof FilterState, value: string) => {
@@ -290,11 +231,15 @@ export default function SearchPage() {
         return { ...prev, [category]: currentValues, page: 1 };
       }
     });
+    // Scroll to top when filter changes
+    scrollToTop();
   };
 
   // Handle price range changes
   const handlePriceChange = (values: number[]) => {
     setFilters(prev => ({ ...prev, priceRange: [values[0], values[1]], page: 1 }));
+    // Scroll to top when price range changes
+    scrollToTop();
   };
 
   // Handle direct min/max price input
@@ -307,11 +252,15 @@ export default function SearchPage() {
         return { ...prev, priceRange: [prev.priceRange[0], numValue], page: 1 };
       }
     });
+    // Scroll to top when price input changes
+    scrollToTop();
   };
 
   // Handle availability toggle
   const handleAvailabilityToggle = (checked: boolean) => {
     setFilters(prev => ({ ...prev, availableOnly: checked, page: 1 }));
+    // Scroll to top when availability changes
+    scrollToTop();
   };
 
   // Handle search term changes
@@ -320,11 +269,17 @@ export default function SearchPage() {
     const form = e.target as HTMLFormElement;
     const searchInput = form.elements.namedItem('searchTerm') as HTMLInputElement;
     setFilters(prev => ({ ...prev, searchTerm: searchInput.value, page: 1 }));
+    // Scroll to top when search changes
+    scrollToTop();
   };
 
   // Handle sort change
-  const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setFilters(prev => ({ ...prev, sortBy: e.target.value }));
+  const handleSortChange = (value: string | React.ChangeEvent<HTMLSelectElement>) => {
+    // If value is an event, extract the value from the target
+    const sortValue = typeof value === 'string' ? value : value.target.value;
+    setFilters(prev => ({ ...prev, sortBy: sortValue, page: 1 }));
+    // Scroll to top when sort changes
+    scrollToTop();
   };
 
   // Handle pagination
@@ -336,7 +291,7 @@ export default function SearchPage() {
   // Reset all filters
   const resetFilters = () => {
     setFilters({
-      priceRange: [0, 200],
+      priceRange: [0, 1000],
       types: [],
       makes: [],
       features: [],
@@ -350,6 +305,8 @@ export default function SearchPage() {
       startDate: undefined,
       endDate: undefined
     });
+    // Scroll to top of page
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Add function to save current search
@@ -757,17 +714,21 @@ export default function SearchPage() {
                   {count} voitures trouvées • Page {filters.page} sur {Math.ceil(count / itemsPerPage)}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-500">Trier par:</span>
-                <select 
-                  className="text-sm border rounded-md px-2 py-1"
-                  value={filters.sortBy}
-                  onChange={handleSortChange}
-                >
-                  <option value="price-asc">Prix: croissant</option>
-                  <option value="price-desc">Prix: décroissant</option>
-                  <option value="newest">Plus récent</option>
-                </select>
+              <div className="mb-4 flex items-center justify-between bg-gray-50 p-3 rounded-md border">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="sort-by" className="text-sm font-medium">Trier par:</Label>
+                  <select
+                    id="sort-by"
+                    className="border rounded-md p-2 text-sm font-medium bg-white"
+                    value={filters.sortBy}
+                    onChange={(e) => handleSortChange(e.target.value)}
+                  >
+                    <option value="newest">Plus récent</option>
+                    <option value="price-asc">Prix croissant</option>
+                    <option value="price-desc">Prix décroissant</option>
+                    <option value="rating">Meilleures notes</option>
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -820,40 +781,51 @@ export default function SearchPage() {
                   <div className="flex flex-col md:flex-row">
                     <div className="relative md:w-1/3">
                       <img
-                            src={car.images[0] || "/placeholder.svg"}
-                        alt={car.title}
+                        src={car.images?.[0] || "/placeholder.svg"}
+                        alt={`${car.make} ${car.model}`}
                         className="w-full h-48 md:h-full object-cover"
                       />
                       <button className="absolute top-2 right-2 p-1.5 rounded-full bg-white/80 hover:bg-white text-gray-600 hover:text-red-500">
                         <Heart className="h-5 w-5" />
                       </button>
+                      {!car.is_available && (
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                          <Badge className="bg-red-600 text-white px-3 py-1.5 text-sm font-medium">Non disponible</Badge>
+                        </div>
+                      )}
                     </div>
                     <div className="flex-1 p-4 md:p-6 flex flex-col">
                       <div className="flex flex-col sm:flex-row justify-between gap-4">
                         <div>
-                          <h2 className="text-xl font-bold">{car.title}</h2>
+                          <h2 className="text-xl font-bold">{car.make} {car.model}</h2>
                           <p className="text-gray-500">
-                            {car.type} • {car.year}
+                            {car.year} • {car.transmission}
                           </p>
                         </div>
                         <div className="text-right">
                           <p className="text-2xl font-bold text-red-600">
-                            {car.price}€<span className="text-sm font-normal text-gray-500">/jour</span>
+                            {car.price_per_day}€<span className="text-sm font-normal text-gray-500">/jour</span>
                           </p>
                         </div>
                       </div>
 
                       <div className="mt-4 flex flex-wrap gap-2">
+                        {car.features && car.features.length > 0 ? (
+                          <>
                             {car.features.slice(0, 4).map((feature, index) => (
-                          <Badge key={index} variant="outline" className="bg-gray-50">
-                            {feature}
-                          </Badge>
-                        ))}
+                              <Badge key={index} variant="outline" className="bg-gray-50">
+                                {feature}
+                              </Badge>
+                            ))}
                             {car.features.length > 4 && (
                               <Badge variant="outline" className="bg-gray-50">
                                 +{car.features.length - 4}
                               </Badge>
                             )}
+                          </>
+                        ) : (
+                          <span className="text-sm text-gray-500">Caractéristiques non spécifiées</span>
+                        )}
                       </div>
 
                       <div className="mt-4 flex items-center text-sm text-gray-500">

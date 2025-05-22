@@ -14,6 +14,9 @@ const publicPaths = [
   '/forgot-password',
   '/reset-password',
   '/login/admin', // Assuming this is a public login page for admins
+  '/search', // Make the search page publicly accessible
+  '/about', // Add about page for public access
+  '/how-it-works', // Add how it works page for public access
   // Add any other public pages here
 ];
 

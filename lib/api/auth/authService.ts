@@ -8,12 +8,16 @@ interface SubscriptionUpdatePayload {
 }
 export interface LoginResponse {
   user: User;
+  token: string;
 }
 
 class AuthService {
   /**
    * Login with email and password
    */
+  async login(email: string, password: string): Promise<LoginResponse> {
+    const response = await apiClient.post<LoginResponse>('/auth/login', { email, password });
+    return response;
   async login(email: string, password: string): Promise<void> {
     await apiClient.post<void>('/auth/login', { email, password });
   }  

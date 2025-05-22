@@ -2,10 +2,10 @@
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
+import { LoginResponse, authService, User as ApiUser } from "./api" // Import from api.ts
 // Assuming you still need these types for your User interface
 import type { BillingPeriod, SubscriptionTier } from "./subscription-plans"
-import { authService } from "./api/auth/authService"
-import { ApiError } from "./api/apiClient" // Import ApiError
+import { ApiError } from "./api/apiClient" // Import ApiError back
 
 // Import BackendSubscriptionPlan if your backend nests the full plan object
 import { type BackendSubscriptionPlan } from './api/subscriptionService'; // <-- Import this if needed
@@ -190,14 +190,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(prev => ({ ...prev, login: true }));
     setError(null);
     try {
-      // Call authentication service to log in (sets the cookie)
-      await authService.login(email, password); // authService.login now returns Promise<void>
-
-      // Fetch user profile after successful login to update context state
-      await fetchUserProfile(); // Use the dedicated fetch function
-
-      // No need to return user data here, the state is updated via setUser
-      // The calling component can check the isAuthenticated/user state
+      // Call authentication service to log in
+      const loginResponse = await authService.login(email, password);
+      
+      // Set user data directly from the login response
+      if (loginResponse && 'user' in loginResponse) {
+        // Convert the API User to our local User type
+        const apiUser = loginResponse.user;
+        const userToSet: User = {
+          id: apiUser.id,
+          name: apiUser.name,
+          email: apiUser.email,
+          role: apiUser.role as "client" | "owner" | "admin" | "superadmin",
+          avatar: apiUser.avatar,
+          isVerified: apiUser.isVerified || false,
+          // Convert subscription if present
+          subscription: apiUser.subscription ? {
+            plan_id: 1, // Default ID since API might not have this
+            tier: apiUser.subscription.tier,
+            billingPeriod: apiUser.subscription.billingPeriod,
+            startDate: apiUser.subscription.startDate,
+            nextBillingDate: apiUser.subscription.nextBillingDate
+          } : null
+        };
+        
+        setUser(userToSet);
+        setStatus("authenticated");
+        
+        // If we have a router, redirect to dashboard
+        if (router) {
+          console.log("Login successful, redirecting to dashboard");
+          router.push("/dashboard");
+        }
+      } else {
+        throw new Error("Login response missing user data");
+      }
     } catch (err) {
       console.error("Login failed:", err);
       setUser(null); // Ensure user state is null on login failure
@@ -205,17 +232,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (err instanceof Error) {
         setError(err.message);
+      } else if (err instanceof ApiError) {
+        setError(err.message || "API Error");
       } else {
         setError("An unknown error occurred during login");
       }
-      throw err; // Re-throw the error so the calling component can handle it (e.g., display error message)
+      throw err; // Re-throw the error so the calling component can handle it
     } finally {
       setLoading(prev => ({ ...prev, login: false }));
     }
   };
 
   // Register function
-  // Assuming your backend /api/register also sets the session cookie and returns user data
   const register = async (userData: RegisterUserData, role: UserRole = "client"): Promise<void> => {
     setLoading(prev => ({ ...prev, register: true }));
     setError(null);
@@ -224,19 +252,49 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("Invalid role specified");
       }
 
-      // Call the register API (Assuming it sets cookie and returns user data)
-      await authService.register(userData, role as string); // authService.register now returns Promise<void>
+      // Call the register API and get the response with user data and token
+      const registerResponse = await authService.register(userData, role as string);
 
-       // Fetch user profile after successful registration to update context state
-      await fetchUserProfile(); // Use the dedicated fetch function
-
-      // No need to return user data here
+      // Set user directly from the response
+      if (registerResponse && 'user' in registerResponse) {
+        // Convert the API User to our local User type
+        const apiUser = registerResponse.user;
+        const userToSet: User = {
+          id: apiUser.id,
+          name: apiUser.name,
+          email: apiUser.email,
+          role: apiUser.role as "client" | "owner" | "admin" | "superadmin",
+          avatar: apiUser.avatar,
+          isVerified: apiUser.isVerified || false,
+          // Convert subscription if present
+          subscription: apiUser.subscription ? {
+            plan_id: 1, // Default ID since API might not have this
+            tier: apiUser.subscription.tier,
+            billingPeriod: apiUser.subscription.billingPeriod,
+            startDate: apiUser.subscription.startDate,
+            nextBillingDate: apiUser.subscription.nextBillingDate
+          } : null
+        };
+        
+        setUser(userToSet);
+        setStatus("authenticated");
+        
+        // If we have a router, redirect to dashboard
+        if (router) {
+          console.log("Registration successful, redirecting to dashboard");
+          router.push("/dashboard");
+        }
+      } else {
+        throw new Error("Register response missing user data");
+      }
     } catch (err) {
       console.error("Registration failed:", err);
-       setUser(null); // Ensure user state is null on registration failure
+      setUser(null); // Ensure user state is null on registration failure
       setStatus("unauthenticated"); // Ensure status is unauthenticated on registration failure
       if (err instanceof Error) {
         setError(err.message);
+      } else if (err instanceof ApiError) {
+        setError(err.message || "API Error");
       } else {
         setError("An unknown error occurred during registration");
       }

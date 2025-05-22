@@ -17,13 +17,18 @@ export default function Header() {
   const pathname = usePathname()
   const { user, status, loading } = useAuth()
 
-  // Navigation items for all users
-  const navItems = [
+  // Navigation items for all users - publicly accessible
+  const publicNavItems = [
     { href: "/", label: "Accueil", icon: Home },
-    { href: "/search", label: "Trouver une voiture", icon: Search },
     { href: "/about", label: "À propos", icon: Info },
     { href: "/how-it-works", label: "Comment ça marche", icon: HelpCircle },
   ]
+  
+  // Navigation items that should be accessible to everyone but might need special handling
+  const searchNavItem = { href: "/search", label: "Trouver une voiture", icon: Search }
+  
+  // Use all nav items regardless of authentication state
+  const navItems = [...publicNavItems, searchNavItem]
 
   // We no longer return null early based on loading.profile
   // The header structure will always be rendered, but its content will be conditional
