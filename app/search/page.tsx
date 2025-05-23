@@ -68,8 +68,14 @@ interface SearchHistory {
 // Available car types
 const carTypes = ["Citadine", "Berline", "SUV", "Compacte", "Utilitaire", "Sport"];
 
-// Available car makes
-const carMakes = ["Renault", "Peugeot", "Citroën", "BMW", "Audi", "Mercedes", "Volkswagen", "Toyota", "Ford"];
+// Available car makes - expanded to match the home page selection
+const carMakes = [
+  "Alfa Romeo", "Audi", "BMW", "Citroën", "Dacia", "Ferrari", "Fiat", "Ford",
+  "Honda", "Hyundai", "Jaguar", "Kia", "Lamborghini", "Land Rover", "Lexus",
+  "Maserati", "Mazda", "Mercedes", "Mini", "Mitsubishi", "Nissan", "Opel",
+  "Peugeot", "Porsche", "Renault", "Seat", "Škoda", "Smart", "Subaru", 
+  "Suzuki", "Tesla", "Toyota", "Volkswagen", "Volvo"
+];
 
 // Available features
 const carFeatures = ["Climatisation", "GPS", "Bluetooth", "Caméra de recul", "Sièges cuir"];
@@ -91,21 +97,52 @@ export default function SearchPage() {
   const [showSearchHistory, setShowSearchHistory] = useState(false);
   const [itemsPerPage] = useState(10);
 
+  // Helper function to properly process URL parameters
+  const processUrlParam = (param: string | null): string[] => {
+    if (!param) return [];
+    
+    // Handle single values (don't split if there's no comma)
+    const values = param.includes(',') ? param.split(',') : [param];
+    
+    // Process each value
+    return values.map(value => {
+      // Convert kebab-case to display format (e.g., "alfa-romeo" to "Alfa Romeo")
+      if (value.includes('-')) {
+        return value.split('-')
+          .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+          .join(' ');
+      }
+      
+      // Ensure proper capitalization for car types and makes
+      if (carTypes.map(t => t.toLowerCase()).includes(value.toLowerCase()) ||
+          carMakes.map(m => m.toLowerCase()).includes(value.toLowerCase())) {
+        // Find the correctly capitalized version
+        const matchingType = carTypes.find(t => t.toLowerCase() === value.toLowerCase());
+        if (matchingType) return matchingType;
+        
+        const matchingMake = carMakes.find(m => m.toLowerCase() === value.toLowerCase());
+        if (matchingMake) return matchingMake;
+      }
+      
+      return value;
+    });
+  };
+  
   // Initialize filters from URL params
   const [filters, setFilters] = useState<FilterState>({
     priceRange: [
       parseInt(searchParams.get("minPrice") || "0"),
       parseInt(searchParams.get("maxPrice") || "1000") // Higher default maximum price to show more cars
     ],
-    types: searchParams.get("types")?.split(",") || [],
-    makes: searchParams.get("makes")?.split(",") || [],
-    features: searchParams.get("features")?.split(",") || [],
+    types: processUrlParam(searchParams.get("types")),
+    makes: processUrlParam(searchParams.get("makes")),
+    features: processUrlParam(searchParams.get("features")),
     availableOnly: searchParams.get("availableOnly") === "true",
     sortBy: searchParams.get("sortBy") || "newest", // Default to newest cars
     searchTerm: searchParams.get("q") || "",
     page: parseInt(searchParams.get("page") || "1"),
-    transmission: searchParams.get("transmission")?.split(",") || [],
-    fuelType: searchParams.get("fuelType")?.split(",") || [],
+    transmission: processUrlParam(searchParams.get("transmission")),
+    fuelType: processUrlParam(searchParams.get("fuelType")),
     minRating: parseInt(searchParams.get("minRating") || "0"),
     startDate: undefined,
     endDate: undefined

@@ -2,7 +2,6 @@
 
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { useAuth } from "@/lib/auth-context"; // Import useAuth
 import { Search, Car, MessageSquare, Shield, Star } from "lucide-react"
 import FeaturedCars from "@/components/featured-cars"
 import HowItWorks from "@/components/how-it-works"
@@ -10,6 +9,7 @@ import { Testimonials } from "@/components/testimonials"
 import { cn } from "@/lib/utils"
 import HeroCarousel from "@/components/hero-carousel"
 import AnimatedText from "@/components/animated-text"
+import { useAuth } from "@/lib/auth-context"
 
 export default function Home() {
   const { isAuthenticated, loading } = useAuth();
@@ -38,26 +38,22 @@ export default function Home() {
                   </p>
                 </AnimatedText>
               </div>
-              {/* Conditional rendering for Login/Signup buttons */}
-              {/* Only show if not authenticated and initial loading is complete */}
-              {!isAuthenticated && !loading.initial && ( 
-                <AnimatedText delay={400}>
-                  <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                    <Button asChild size="lg" className="bg-white text-red-600 hover:bg-gray-100">
-                      <Link href="/login"> {/* Link to Login page */}
-                        Connexion
-                        <Search className="ml-2 h-4 w-4" />
-                      </Link>
-                    </Button>
-                    <Button asChild size="lg" variant="outline" className="border-white text-red-600 hover:bg-white/20 hover:text-white">
-                      <Link href="/register?type=owner">
-                        S'inscrire {/* Text for Signup button */}
-                        <Car className="ml-2 h-4 w-4" />
-                      </Link>
-                    </Button>
-                  </div>
-                </AnimatedText>
-                )}
+              <AnimatedText delay={400}>
+                <div className="flex flex-col gap-2 min-[400px]:flex-row">
+                  <Button asChild size="lg" className="bg-white text-red-600 hover:bg-gray-100">
+                    <Link href="/search">
+                      Trouver une voiture
+                      <Search className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                  <Button asChild size="lg" variant="outline" className="border-white text-red-600 hover:bg-white/20 hover:text-white">
+                    <Link href="/register?type=owner">
+                      Publier ma voiture
+                      <Car className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                </div>
+              </AnimatedText>
             </div>
             <div className="relative lg:block">
               <HeroCarousel />
@@ -78,60 +74,122 @@ export default function Home() {
               <p className="text-muted-foreground md:text-xl">Des milliers de voitures disponibles près de chez vous</p>
             </div>
             <div className="mx-auto w-full max-w-3xl">
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="relative">
-                  <select
-                    className="w-full h-12 pl-3 pr-10 text-base placeholder-muted-foreground border border-input bg-background rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent"
-                    defaultValue=""
-                  >
-                    <option value="" disabled>
-                      Marque
-                    </option>
-                    <option value="audi">Audi</option>
-                    <option value="bmw">BMW</option>
-                    <option value="mercedes">Mercedes</option>
-                    <option value="renault">Renault</option>
-                    <option value="peugeot">Peugeot</option>
-                  </select>
-                  <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                    <svg className="w-5 h-5 text-muted-foreground" fill="currentColor" viewBox="0 0 20 20">
-                      <path
-                        fillRule="evenodd"
-                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const form = e.currentTarget;
+                  const makeSelect = form.querySelector('[name="make"]') as HTMLSelectElement;
+                  const typeSelect = form.querySelector('[name="type"]') as HTMLSelectElement;
+                  
+                  // Get the values from the select elements
+                  let make = makeSelect?.value;
+                  let type = typeSelect?.value;
+                  
+                  // Format the car make values to match display format in search page
+                  // Convert kebab-case (alfa-romeo) to proper case (Alfa Romeo)
+                  if (make && make.includes('-')) {
+                    make = make.split('-')
+                      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+                      .join(' ');
+                  }
+                  
+                  // Build the query string with selected filters
+                  const params = new URLSearchParams();
+                  
+                  // Use the correct parameter names that match the search page expectations
+                  if (make) params.append('makes', make); // Note: using 'makes' instead of 'make'
+                  if (type) params.append('types', type); // Note: using 'types' instead of 'type'
+                  
+                  // Redirect to search page with filters
+                  window.location.href = `/search?${params.toString()}`;
+                }}
+              >
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="relative">
+                    <select
+                      name="make"
+                      className="w-full h-12 pl-3 pr-10 text-base placeholder-muted-foreground border border-input bg-background rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent"
+                      defaultValue=""
+                    >
+                      <option value="" disabled>
+                        Marque
+                      </option>
+                      <option value="alfa-romeo">Alfa Romeo</option>
+                      <option value="audi">Audi</option>
+                      <option value="bmw">BMW</option>
+                      <option value="citroen">Citroën</option>
+                      <option value="dacia">Dacia</option>
+                      <option value="ferrari">Ferrari</option>
+                      <option value="fiat">Fiat</option>
+                      <option value="ford">Ford</option>
+                      <option value="honda">Honda</option>
+                      <option value="hyundai">Hyundai</option>
+                      <option value="jaguar">Jaguar</option>
+                      <option value="kia">Kia</option>
+                      <option value="lamborghini">Lamborghini</option>
+                      <option value="land-rover">Land Rover</option>
+                      <option value="lexus">Lexus</option>
+                      <option value="maserati">Maserati</option>
+                      <option value="mazda">Mazda</option>
+                      <option value="mercedes">Mercedes</option>
+                      <option value="mini">Mini</option>
+                      <option value="mitsubishi">Mitsubishi</option>
+                      <option value="nissan">Nissan</option>
+                      <option value="opel">Opel</option>
+                      <option value="peugeot">Peugeot</option>
+                      <option value="porsche">Porsche</option>
+                      <option value="renault">Renault</option>
+                      <option value="seat">Seat</option>
+                      <option value="skoda">Škoda</option>
+                      <option value="smart">Smart</option>
+                      <option value="subaru">Subaru</option>
+                      <option value="suzuki">Suzuki</option>
+                      <option value="tesla">Tesla</option>
+                      <option value="toyota">Toyota</option>
+                      <option value="volkswagen">Volkswagen</option>
+                      <option value="volvo">Volvo</option>
+                    </select>
+                    <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                      <svg className="w-5 h-5 text-muted-foreground" fill="currentColor" viewBox="0 0 20 20">
+                        <path
+                          fillRule="evenodd"
+                          d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </div>
                   </div>
-                </div>
-                <div className="relative">
-                  <select
-                    className="w-full h-12 pl-3 pr-10 text-base placeholder-muted-foreground border border-input bg-background rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent"
-                    defaultValue=""
-                  >
-                    <option value="" disabled>
-                      Type
-                    </option>
-                    <option value="citadine">Citadine</option>
-                    <option value="suv">SUV</option>
-                    <option value="berline">Berline</option>
-                    <option value="sport">Sport</option>
-                    <option value="utilitaire">Utilitaire</option>
-                  </select>
-                  <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                    <svg className="w-5 h-5 text-muted-foreground" fill="currentColor" viewBox="0 0 20 20">
-                      <path
-                        fillRule="evenodd"
-                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
+                  <div className="relative">
+                    <select
+                      name="type"
+                      className="w-full h-12 pl-3 pr-10 text-base placeholder-muted-foreground border border-input bg-background rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent"
+                      defaultValue=""
+                    >
+                      <option value="" disabled>
+                        Type
+                      </option>
+                      <option value="Citadine">Citadine</option>
+                      <option value="SUV">SUV</option>
+                      <option value="Berline">Berline</option>
+                      <option value="Sport">Sport</option>
+                      <option value="Utilitaire">Utilitaire</option>
+                    </select>
+                    <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                      <svg className="w-5 h-5 text-muted-foreground" fill="currentColor" viewBox="0 0 20 20">
+                        <path
+                          fillRule="evenodd"
+                          d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </div>
                   </div>
+                  <Button type="submit" className="h-12 bg-red-600 hover:bg-red-700">
+                    <Search className="mr-2 h-4 w-4" />
+                    Rechercher
+                  </Button>
                 </div>
-                <Button className="h-12 bg-red-600 hover:bg-red-700">
-                  <Search className="mr-2 h-4 w-4" />
-                  Rechercher
-                </Button>
-              </div>
+              </form>
             </div>
           </div>
         </div>

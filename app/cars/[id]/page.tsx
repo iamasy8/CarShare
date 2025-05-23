@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { ChevronLeft, Calendar, User, MapPin, Car as CarIcon, Star, Heart, Share2, AlertTriangle, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
@@ -16,7 +16,14 @@ import { useRouter } from "next/navigation"
 import { AlertDescription, Alert } from "@/components/ui/alert"
 import { DateRange } from "react-day-picker"
 
-export default function CarDetailsPage({ params }: { params: { id: string } }) {
+// In Next.js 14+, params are wrapped in a Promise
+type PageProps = {
+  params: Promise<{ id: string }>
+};
+
+export default function CarDetailsPage({ params }: PageProps) {
+  // Unwrap params using React.use() to address the Next.js warning
+  const { id } = React.use(params);
   const { user, isAuthenticated } = useAuth()
   const { toast } = useToast()
   const router = useRouter()
@@ -51,7 +58,10 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     if (car && dateRange.from && dateRange.to) {
       const days = calculateDays(dateRange.from, dateRange.to)
-      setTotalPrice(car.price * days)
+      // Use price_per_day first, fall back to price if needed
+      const pricePerDay = car.price_per_day || car.price || 0
+      // Format to 2 decimal places
+      setTotalPrice(parseFloat((pricePerDay * days).toFixed(2)))
     } else {
       setTotalPrice(0)
     }
@@ -64,42 +74,40 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
       setError("")
 
       try {
-        if (process.env.NODE_ENV === "development") {
-          // Mock data in development
-          await new Promise(resolve => setTimeout(resolve, 500))
+        // Fetch real car data from API in both development and production modes
+        const carData = await carService.getCar(parseInt(id))
+        setCar(carData)
+        
+        // If API call fails in development mode, show a fallback mock car
+        // This ensures we have something to display if the backend is not available
+        if (!carData && process.env.NODE_ENV === "development") {
+          console.warn("Could not fetch car data from API, using fallback mock data")
           
-          // Create a mock car object
-          const mockCar: Car = {
-            id: parseInt(params.id),
-            title: "Peugeot 3008",
-            type: "SUV",
-            make: "Peugeot",
-            model: "3008",
-            price: 65,
-            location: "Rabat, Morocco",
-            features: ["Climatisation", "5 portes", "Caméra de recul", "GPS", "Bluetooth", "Sièges chauffants"],
-            year: 2021,
+          // Create a fallback mock car with the requested ID
+          const fallbackMockCar: Car = {
+            id: parseInt(id),
+            make: "Example",
+            model: `Car ${id}`,
+            price_per_day: 50, // Use price_per_day instead of price
+            price: 50, // Keep legacy field too
+            type: "Sedan", // Required field
+            location: "Example Location",
+            features: ["Feature 1", "Feature 2"],
+            year: 2023,
             status: "approved",
-    seats: 5,
-            doors: 5,
-            fuel: "diesel",
-            transmission: "automatic",
-            description: "SUV familial spacieux et confortable, parfait pour les voyages en famille ou les déplacements professionnels. Équipé de toutes les options modernes pour assurer votre confort et votre sécurité.",
-    images: [
-              "/placeholder.svg?height=300&width=500",
-              "/placeholder.svg?height=300&width=500",
-              "/placeholder.svg?height=300&width=500"
-            ],
-            ownerId: 2,
+            seats: 5,
+            doors: 4,
+            fuel: "petrol",
+            transmission: "manual",
+            description: "This is a fallback mock car when the API is not available.",
+            images: ["/placeholder.svg?height=300&width=500"],
+            is_available: true, // Required field
+            ownerId: 1,
             createdAt: new Date(),
             updatedAt: new Date()
           }
           
-          setCar(mockCar)
-        } else {
-          // In production, fetch from API
-          const carData = await carService.getCar(parseInt(params.id))
-          setCar(carData)
+          setCar(fallbackMockCar)
         }
       } catch (err) {
         console.error("Error fetching car details:", err)
@@ -110,7 +118,7 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
     }
 
     fetchCar()
-  }, [params.id])
+  }, [id])
 
   // Handle booking submission
   const handleBooking = async () => {
@@ -120,7 +128,7 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
         description: "Veuillez vous connecter pour réserver ce véhicule.",
         variant: "destructive",
       })
-      router.push(`/login?redirect=/cars/${params.id}`)
+      router.push(`/login?redirect=/cars/${id}`)
       return
     }
 
@@ -203,40 +211,58 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
               {/* Car images */}
               <div className="relative aspect-[16/9] bg-gray-100 overflow-hidden">
                 <img
-                  src={car.images[0] || "/placeholder.svg"}
-                alt={car.title}
+                  src={(Array.isArray(car.images) && car.images.length > 0) ? car.images[0] : "/placeholder.svg"}
+                  alt={`${car.make} ${car.model}`}
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute top-4 right-4 flex gap-2">
-                  <button className="p-2 rounded-full bg-white/80 hover:bg-white text-gray-600 hover:text-red-500">
+                  <button 
+                    onClick={() => {
+                      toast({
+                        title: "Ajouté aux favoris",
+                        description: `${car.make} ${car.model} a été ajouté à vos favoris.`,
+                      });
+                    }} 
+                    className="p-2 rounded-full bg-white/80 hover:bg-white text-gray-600 hover:text-red-500"
+                  >
                     <Heart className="h-5 w-5" />
                   </button>
-                  <button className="p-2 rounded-full bg-white/80 hover:bg-white text-gray-600 hover:text-blue-500">
+                  <button 
+                    onClick={() => {
+                      // Copy URL to clipboard
+                      navigator.clipboard.writeText(window.location.href);
+                      toast({
+                        title: "Lien copié",
+                        description: "L'URL a été copiée dans le presse-papier.",
+                      });
+                    }}
+                    className="p-2 rounded-full bg-white/80 hover:bg-white text-gray-600 hover:text-blue-500"
+                  >
                     <Share2 className="h-5 w-5" />
                   </button>
                 </div>
             </div>
 
               {/* Thumbnail images */}
-              {car.images.length > 1 && (
+              {Array.isArray(car.images) && car.images.length > 1 && (
                 <div className="p-4 grid grid-cols-4 gap-2">
-              {car.images.map((image, index) => (
+                  {car.images.map((image, index) => (
                     <div key={index} className="aspect-[4/3] rounded-md overflow-hidden bg-gray-100">
                       <img
-                    src={image || "/placeholder.svg"}
-                    alt={`${car.title} - Image ${index + 1}`}
+                        src={image || "/placeholder.svg"}
+                        alt={`${car.make} ${car.model} - Image ${index + 1}`}
                         className="w-full h-full object-cover"
-                  />
+                      />
                     </div>
-              ))}
-            </div>
+                  ))}
+                </div>
               )}
 
           {/* Car details */}
               <div className="p-6">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
           <div>
-              <h1 className="text-2xl font-bold">{car.title}</h1>
+              <h1 className="text-2xl font-bold">{car.make} {car.model}</h1>
                     <div className="flex items-center gap-2 mt-1 text-gray-500">
                       <Badge variant="outline">{car.type}</Badge>
                       <span>•</span>
@@ -245,8 +271,8 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
             </div>
                   <div className="mt-2 sm:mt-0">
                     <div className="text-2xl font-bold text-red-600">
-                      {car.price}€<span className="text-sm font-normal text-gray-500">/jour</span>
-              </div>
+                      {car.price_per_day || car.price || 0}€<span className="text-sm font-normal text-gray-500">/jour</span>
+                    </div>
             </div>
           </div>
 
@@ -256,7 +282,7 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="flex flex-col items-center p-3 bg-gray-50 rounded-lg">
                     <CarIcon className="h-5 w-5 text-gray-400 mb-1" />
-                    <span className="text-sm font-medium">{carHelpers.getTransmissionLabel(car.transmission)}</span>
+                    <span className="text-sm font-medium">{car.transmission ? carHelpers.getTransmissionLabel(car.transmission) : 'Non spécifié'}</span>
                   </div>
                   <div className="flex flex-col items-center p-3 bg-gray-50 rounded-lg">
                     <User className="h-5 w-5 text-gray-400 mb-1" />
@@ -294,7 +320,7 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
                         d="M13 10V3L4 14h7v7l9-11h-7z"
                       />
                     </svg>
-                    <span className="text-sm font-medium">{carHelpers.getFuelTypeLabel(car.fuel)}</span>
+                    <span className="text-sm font-medium">{car.fuel ? carHelpers.getFuelTypeLabel(car.fuel) : 'Non spécifié'}</span>
                   </div>
                 </div>
 
@@ -354,19 +380,19 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
                   <div className="mb-6">
                     <div className="flex justify-between text-sm mb-1">
                       <span className="text-gray-500">
-                        {car.price}€ x {calculateDays(dateRange.from, dateRange.to)} jours
+                        {(car.price_per_day || car.price || 0).toFixed(2)}€ x {calculateDays(dateRange.from, dateRange.to)} jours
                       </span>
-                      <span className="font-medium">{totalPrice}€</span>
-                  </div>
+                      <span className="font-medium">{totalPrice.toFixed(2)}€</span>
+                    </div>
                     <div className="flex justify-between text-sm mb-1">
                       <span className="text-gray-500">Frais de service</span>
-                      <span className="font-medium">{Math.round(totalPrice * 0.1)}€</span>
-                  </div>
+                      <span className="font-medium">{(totalPrice * 0.1).toFixed(2)}€</span>
+                    </div>
                     <Separator className="my-3" />
                     <div className="flex justify-between">
                       <span className="font-medium">Total</span>
-                      <span className="font-bold">{totalPrice + Math.round(totalPrice * 0.1)}€</span>
-                  </div>
+                      <span className="font-bold">{(totalPrice + (totalPrice * 0.1)).toFixed(2)}€</span>
+                    </div>
                   </div>
                 )}
                 

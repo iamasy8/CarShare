@@ -17,8 +17,14 @@ const publicPaths = [
   '/search', // Make the search page publicly accessible
   '/about', // Add about page for public access
   '/how-it-works', // Add how it works page for public access
-  // Add any other public pages here
+  // Allow access to car details pages without authentication
+  '/cars', // Base car page
 ];
+
+// Function to check if a path starts with a given prefix
+const startsWithPath = (pathname: string, prefix: string) => {
+  return pathname.startsWith(prefix);
+};
 
 // Define routes that should redirect authenticated users away (e.g., login/register)
 const publicOnlyRoutes = ['/login', '/register', '/forgot-password', '/reset-password'];
@@ -55,8 +61,8 @@ export function middleware(request: NextRequest) {
 const isAuthenticated = request.cookies.has('localhost');
   // -----------------------------------------
 
-  // Allow access to explicitly defined public paths
-  if (publicPaths.includes(pathname)) {
+  // Allow access to explicitly defined public paths or paths that start with public prefixes
+  if (publicPaths.includes(pathname) || startsWithPath(pathname, '/cars/')) {
     return NextResponse.next();
   }
 
