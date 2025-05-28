@@ -2,7 +2,8 @@
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
-import { LoginResponse, authService, User as ApiUser } from "./api" // Import from api.ts
+import { LoginResponse, User as ApiUser } from "./api" // Import from api.ts
+import { authService } from "./api/auth/authService" // Import authService from the correct location
 // Assuming you still need these types for your User interface
 import type { BillingPeriod, SubscriptionTier } from "./subscription-plans"
 import { ApiError } from "./api/apiClient" // Import ApiError back
@@ -137,41 +138,50 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Function to fetch user profile after successful auth or on mount
   const fetchUserProfile = async () => {
-    setLoading(prev => ({ ...prev, profile: true })); // Set profile loading to true
+    setLoading(prev => ({ ...prev, profile: true }));
     try {
-      const userData = await authService.getProfile(); // This call should handle the cookie check
+      const userData = await authService.getProfile();
 
       if (userData) {
-        // User data received, they are authenticated
-        // ... (date parsing logic)
-        setUser(userData);
-        setStatus("authenticated"); // Set status to "authenticated" on success
+        // Transform the API user data to match our User interface
+        const transformedUser: User = {
+          id: userData.id,
+          name: userData.name,
+          email: userData.email,
+          role: userData.role as "client" | "owner" | "admin" | "superadmin",
+          avatar: userData.avatar,
+          isVerified: userData.isVerified || false,
+          // Transform subscription if present
+          subscription: userData.subscription ? {
+            plan_id: userData.subscription.plan_id || 1, // Use plan_id from API or default to 1
+            tier: userData.subscription.tier,
+            billingPeriod: userData.subscription.billingPeriod,
+            startDate: new Date(userData.subscription.startDate),
+            nextBillingDate: userData.subscription.nextBillingDate ? new Date(userData.subscription.nextBillingDate) : null
+          } : null
+        };
+        
+        setUser(transformedUser);
+        setStatus("authenticated");
       } else {
-        // No user data received, they are not authenticated
-        console.log("No user data received, setting status to unauthenticated."); // Add logging
+        console.log("No user data received, setting status to unauthenticated.");
         setUser(null);
-        setStatus("unauthenticated"); // Set status to "unauthenticated" if no user data
+        setStatus("unauthenticated");
       }
     } catch(err) {
-       // If fetching profile fails (e.g., 401 Unauthorized because session expired or no cookie)
-       console.error("Failed to fetch user profile:", err); // Add logging
-       setUser(null); // Clear user state
-       setStatus("unauthenticated"); // Set status to "unauthenticated" on error
+      console.error("Failed to fetch user profile:", err);
+      setUser(null);
+      setStatus("unauthenticated");
 
-       // Optionally, handle specific API errors
-       if (err instanceof ApiError && err.status === 401) {
-          console.error("API returned 401, unauthenticated."); // Add logging
-          // The apiClient's response interceptor should already be handling the redirect to login.
-          // We just ensure the frontend state is clean.
-       } else {
-          // Handle other potential errors
-          const errorMessage = (err as any).message || "Failed to load user data.";
-          setError(errorMessage);
-       }
-    }finally {
-       // Crucially, set initial loading and profile loading to false after fetch completes
-       console.log("fetchUserProfile completed, setting loading to false."); // Add logging
-       setLoading(prev => ({ ...prev, initial: false, profile: false }));
+      if (err instanceof ApiError && err.status === 401) {
+        console.error("API returned 401, unauthenticated.");
+      } else {
+        const errorMessage = (err as any).message || "Failed to load user data.";
+        setError(errorMessage);
+      }
+    } finally {
+      console.log("fetchUserProfile completed, setting loading to false.");
+      setLoading(prev => ({ ...prev, initial: false, profile: false }));
     }
   };
 

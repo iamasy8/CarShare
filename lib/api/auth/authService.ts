@@ -11,7 +11,17 @@ export interface LoginResponse {
   token: string;
 }
 
-class AuthService {
+export interface AuthService {
+  login: (email: string, password: string) => Promise<LoginResponse>;
+  register: (userData: RegisterUserData, role: string) => Promise<LoginResponse>;
+  logout: () => Promise<void>;
+  getProfile: () => Promise<User>;
+  verifyIdentity: (formData: FormData) => Promise<User>;
+  updateSubscription: (payload: SubscriptionUpdatePayload) => Promise<void>;
+  updateProfile: (profileData: Partial<User>) => Promise<void>;
+}
+
+class AuthServiceImpl implements AuthService {
   /**
    * Login with email and password
    */
@@ -73,8 +83,13 @@ class AuthService {
   /**
    * Update user profile
    */
-  async updateProfile(profileData: Partial<User>): Promise<User> {
-    return apiClient.put<User>('/auth/profile', profileData);
+  async updateProfile(profileData: Partial<User>): Promise<void> {
+    try {
+      await apiClient.put<ApiResponse<User>>('/user/profile', profileData);
+    } catch (error) {
+      console.error("authService.updateProfile failed:", error);
+      throw error;
+    }
   }
   
   /**
@@ -117,4 +132,5 @@ class AuthService {
   }
 }
 
-export const authService = new AuthService(); 
+// Create and export a singleton instance
+export const authService: AuthService = new AuthServiceImpl(); 

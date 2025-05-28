@@ -1,4 +1,4 @@
-  import axios from "axios";
+import axios from "axios";
 import type { SubscriptionTier, BillingPeriod } from "./subscription-plans";
 import type { RegisterUserData } from "./auth-context";
 
@@ -42,6 +42,7 @@ export interface User {
   avatar: string;
   isVerified: boolean;
   subscription?: {
+    plan_id: number;
     tier: SubscriptionTier;
     billingPeriod: BillingPeriod;
     startDate: Date;
