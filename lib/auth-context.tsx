@@ -170,31 +170,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setStatus("loading")
         
         try {
-          // COMMENTED FOR TESTING - NO BACKEND NEEDED
           // Fetch user profile from the API
-          // const userData = await authService.getProfile()
+          const userData = await authService.getProfile()
           
-          // // Transform dates into Date objects if needed
-          // if (userData.subscription) {
-          //   userData.subscription.startDate = new Date(userData.subscription.startDate)
-          //   userData.subscription.nextBillingDate = new Date(userData.subscription.nextBillingDate)
-          // }
+          // Transform dates into Date objects if needed
+          if (userData.subscription) {
+            userData.subscription.startDate = new Date(userData.subscription.startDate)
+            userData.subscription.nextBillingDate = new Date(userData.subscription.nextBillingDate)
+          }
           
-          // if (userData.sessionExpiry) {
-          //   userData.sessionExpiry = new Date(userData.sessionExpiry)
-          // }
+          if (userData.sessionExpiry) {
+            userData.sessionExpiry = new Date(userData.sessionExpiry)
+          }
           
-          // if (userData.lastLogin) {
-          //   userData.lastLogin = new Date(userData.lastLogin)
-          // }
+          if (userData.lastLogin) {
+            userData.lastLogin = new Date(userData.lastLogin)
+          }
           
-          // setUser(userData)
+          setUser(userData)
+          setStatus("authenticated")
           
-          // UNCOMMENT THIS LINE TO AUTO-LOGIN AS ADMIN FOR TESTING
+          // UNCOMMENT THIS LINE TO AUTO-LOGIN AS ADMIN FOR TESTING WHEN API IS NOT AVAILABLE
           // setUser(mockUsers.admin)
-          
-              setStatus("unauthenticated")
-          } catch (err) {
+        } catch (err) {
           console.error("Failed to validate authentication:", err)
           setStatus("unauthenticated")
         }
@@ -236,76 +234,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(prev => ({ ...prev, login: true }))
       setError(null)
       
-      // FOR TESTING - No backend needed
-      // Check if email matches one of our mock users
-      if (email === "admin@carshare.com") {
-        setUser(mockUsers.admin)
+      // Try to log in with the API
+      try {
+        const response = await authService.login(email, password)
+        setUser(response.user)
         setStatus("authenticated")
-        return mockUsers.admin
-      } else if (email === "superadmin@carshare.com") {
-        setUser(mockUsers.superadmin)
-        setStatus("authenticated")
-        return mockUsers.superadmin
-      } else if (email === "owner@carshare.com") {
-        setUser(mockUsers.owner)
-        setStatus("authenticated")
-        return mockUsers.owner
-      } else if (email === "client@carshare.com") {
-        setUser(mockUsers.client)
-        setStatus("authenticated")
-        return mockUsers.client
+        return response.user
+      } catch (error: any) {
+        // If API fails, fall back to mock users for testing
+        if (email === "admin@carshare.com") {
+          setUser(mockUsers.admin)
+          setStatus("authenticated")
+          return mockUsers.admin
+        } else if (email === "superadmin@carshare.com") {
+          setUser(mockUsers.superadmin)
+          setStatus("authenticated")
+          return mockUsers.superadmin
+        } else if (email === "owner@carshare.com") {
+          setUser(mockUsers.owner)
+          setStatus("authenticated")
+          return mockUsers.owner
+        } else if (email === "client@carshare.com") {
+          setUser(mockUsers.client)
+          setStatus("authenticated")
+          return mockUsers.client
+        }
+        
+        // If neither API nor mock users work, throw the error
+        throw error
       }
-      
-      // Validate inputs
-      if (!email || !password) {
-        throw new Error("Email and password are required")
-      }
-
-      // Admin login security check - enforce specific admin email format
-      if (email.includes("admin") && !email.endsWith("@carshare.com")) {
-        throw new Error("Invalid admin credentials")
-      }
-      
-      // Create audit log entry for admin login attempts
-      const isAdminAttempt = email.includes("admin")
-      if (isAdminAttempt) {
-        // In production, this would call the API to log the attempt
-        console.log(`Admin login attempt: ${email} at ${new Date().toISOString()}`)
-      }
-      
-      // Call authentication service
-      const response = await authService.login(email, password)
-      
-      // Verify and process the user data
-      const userData = response.user
-      
-      // Transform dates back into Date objects
-      if (userData.subscription) {
-        userData.subscription.startDate = new Date(userData.subscription.startDate)
-        userData.subscription.nextBillingDate = new Date(userData.subscription.nextBillingDate)
-      }
-      
-      if (userData.sessionExpiry) {
-        userData.sessionExpiry = new Date(userData.sessionExpiry)
-      }
-      
-      if (userData.lastLogin) {
-        userData.lastLogin = new Date(userData.lastLogin)
-      }
-            
-            setUser(userData)
-            setStatus("authenticated")
-      
-      return userData
-    } catch (err) {
-      console.error("Login failed:", err)
-      if (err instanceof Error) {
-        setError(err.message)
-        throw new Error(err.message)
-          } else {
-        setError("An unknown error occurred during login")
-        throw new Error("An unknown error occurred during login")
-          }
+    } catch (error: any) {
+      setError(error?.message || "Login failed. Please check your credentials.")
+      throw error
     } finally {
       setLoading(prev => ({ ...prev, login: false }))
     }
@@ -377,17 +337,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Logout function
   const logout = async () => {
     try {
-      await authService.logout()
-    } catch (err) {
-      console.error("Logout API call failed:", err)
-      // Continue with cleanup even if API call fails
-    }
-    
+      // Try to log out with the API
+      try {
+        await authService.logout()
+      } catch (error) {
+        console.error("API logout failed, proceeding with client-side logout", error)
+      }
+      
+      // Always clear the local user state
       setUser(null)
       setStatus("unauthenticated")
-    
-    // Redirect to homepage
-      router.push("/")
+      
+      // Redirect to login page
+      router.push("/login")
+    } catch (error) {
+      console.error("Logout failed", error)
+    }
   }
 
   // Update subscription
