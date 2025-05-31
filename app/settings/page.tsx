@@ -168,8 +168,8 @@ export default function SettingsPage() {
                   <CardDescription>Modifiez votre adresse email</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Form {...emailForm}>
-                    <form onSubmit={emailForm.handleSubmit(onEmailSubmit)} className="space-y-6">
+                  <form onSubmit={emailForm.handleSubmit(onEmailSubmit)} className="space-y-6">
+                    <Form {...emailForm}>
                       <FormField
                         control={emailForm.control}
                         name="email"
@@ -191,8 +191,8 @@ export default function SettingsPage() {
                           </FormItem>
                         )}
                       />
-                    </form>
-                  </Form>
+                    </Form>
+                  </form>
                 </CardContent>
               </Card>
 
@@ -202,8 +202,8 @@ export default function SettingsPage() {
                   <CardDescription>Modifiez votre numéro de téléphone</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Form {...phoneForm}>
-                    <form onSubmit={phoneForm.handleSubmit(onPhoneSubmit)} className="space-y-6">
+                  <form onSubmit={phoneForm.handleSubmit(onPhoneSubmit)} className="space-y-6">
+                    <Form {...phoneForm}>
                       <FormField
                         control={phoneForm.control}
                         name="phone"
@@ -223,8 +223,8 @@ export default function SettingsPage() {
                           </FormItem>
                         )}
                       />
-                    </form>
-                  </Form>
+                    </Form>
+                  </form>
                 </CardContent>
               </Card>
 
@@ -236,7 +236,7 @@ export default function SettingsPage() {
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <FormLabel>Langue</FormLabel>
+                      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Langue</label>
                       <Select defaultValue="fr">
                         <SelectTrigger>
                           <SelectValue placeholder="Sélectionnez une langue" />
@@ -251,7 +251,7 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <FormLabel>Devise</FormLabel>
+                      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Devise</label>
                       <Select defaultValue="eur">
                         <SelectTrigger>
                           <SelectValue placeholder="Sélectionnez une devise" />
@@ -316,8 +316,8 @@ export default function SettingsPage() {
                   <CardDescription>Modifiez votre mot de passe</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Form {...passwordForm}>
-                    <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-6">
+                  <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-6">
+                    <Form {...passwordForm}>
                       <FormField
                         control={passwordForm.control}
                         name="currentPassword"
@@ -366,8 +366,8 @@ export default function SettingsPage() {
                           Mettre à jour le mot de passe
                         </Button>
                       </div>
-                    </form>
-                  </Form>
+                    </Form>
+                  </form>
                 </CardContent>
               </Card>
 
@@ -607,8 +607,8 @@ export default function SettingsPage() {
 
                   <div className="mt-6">
                     <h3 className="text-lg font-medium mb-4">Ajouter une nouvelle carte</h3>
-                    <Form {...paymentForm}>
-                      <form onSubmit={paymentForm.handleSubmit(onPaymentSubmit)} className="space-y-6">
+                    <form onSubmit={paymentForm.handleSubmit(onPaymentSubmit)} className="space-y-6">
+                      <Form {...paymentForm}>
                         <FormField
                           control={paymentForm.control}
                           name="cardNumber"
@@ -672,8 +672,8 @@ export default function SettingsPage() {
                             Ajouter la carte
                           </Button>
                         </div>
-                      </form>
-                    </Form>
+                      </Form>
+                    </form>
                   </div>
                 </CardContent>
               </Card>

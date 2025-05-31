@@ -11,14 +11,25 @@ class AuthService {
    * Login with email and password
    */
   async login(email: string, password: string): Promise<AuthResponse> {
-    return apiClient.post<AuthResponse>('/auth/login', { email, password });
+    const response = await apiClient.post<{success: boolean, data: AuthResponse, message: string}>('/auth/login', { email, password });
+    // The apiClient automatically extracts response.data.data, so we get the AuthResponse directly
+    return response;
   }
   
   /**
    * Register a new user
    */
   async register(userData: RegisterUserData, role: string): Promise<AuthResponse> {
-    return apiClient.post<AuthResponse>('/auth/register', { ...userData, role });
+    // Transform frontend firstName/lastName to backend name
+    const backendUserData = {
+      name: `${userData.firstName} ${userData.lastName}`,
+      email: userData.email,
+      password: userData.password,
+      role
+    };
+    
+    const response = await apiClient.post<{success: boolean, data: AuthResponse, message: string}>('/auth/register', backendUserData);
+    return response;
   }
   
   /**
@@ -56,7 +67,8 @@ class AuthService {
    */
   async refreshToken(): Promise<AuthResponse | null> {
     try {
-      return apiClient.post<AuthResponse>('/auth/refresh-token');
+      const response = await apiClient.post<{success: boolean, data: AuthResponse, message: string}>('/auth/refresh-token');
+      return response;
     } catch (error) {
       console.error('Failed to refresh token:', error);
       return null;
