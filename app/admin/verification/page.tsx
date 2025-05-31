@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -18,6 +18,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { Search, CheckCircle, XCircle, AlertTriangle, Eye, FileText, Car, User, Filter } from "lucide-react"
 import AdminSidebar from "@/components/admin/admin-sidebar"
+import { useRealApi } from "@/lib/utils"
 
 // Mock data for pending verifications
 const pendingVerifications = [
@@ -156,6 +157,10 @@ export default function AdminVerificationPage() {
   const [rejectReason, setRejectReason] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
   const [showRejectDialog, setShowRejectDialog] = useState(false)
+  const [pendingVerifications, setPendingVerifications] = useState([])
+  const [recentVerifications, setRecentVerifications] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState("")
 
   const filteredPending = pendingVerifications.filter(
     (verification) =>
@@ -186,6 +191,38 @@ export default function AdminVerificationPage() {
     setSelectedVerification(verification)
     setShowRejectDialog(true)
   }
+
+  useEffect(() => {
+    const fetchVerifications = async () => {
+      setIsLoading(true)
+      setError("")
+      
+      try {
+        if (useRealApi()) {
+          // In production, use the actual API
+          const pendingData = await verificationService.getPendingVerifications()
+          const recentData = await verificationService.getRecentVerifications()
+          
+          setPendingVerifications(pendingData)
+          setRecentVerifications(recentData)
+        } else {
+          // For development, use mock data
+          setPendingVerifications(mockPendingVerifications)
+          setRecentVerifications(mockRecentVerifications)
+          
+          // Simulate API delay
+          await new Promise(resolve => setTimeout(resolve, 500))
+        }
+      } catch (err) {
+        console.error("Error fetching verifications:", err)
+        setError("Failed to load verification data")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    fetchVerifications()
+  }, [])
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">

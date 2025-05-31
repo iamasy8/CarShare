@@ -173,25 +173,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // Fetch user profile from the API
           const userData = await authService.getProfile()
           
-          // Transform dates into Date objects if needed
-          if (userData.subscription) {
-            userData.subscription.startDate = new Date(userData.subscription.startDate)
-            userData.subscription.nextBillingDate = new Date(userData.subscription.nextBillingDate)
+          // Make sure we have valid user data before proceeding
+          if (userData) {
+            // Transform dates into Date objects if needed
+            if (userData.subscription) {
+              userData.subscription.startDate = new Date(userData.subscription.startDate)
+              userData.subscription.nextBillingDate = new Date(userData.subscription.nextBillingDate)
+            }
+            
+            if (userData.sessionExpiry) {
+              userData.sessionExpiry = new Date(userData.sessionExpiry)
+            }
+            
+            if (userData.lastLogin) {
+              userData.lastLogin = new Date(userData.lastLogin)
+            }
+            
+            setUser(userData)
+            setStatus("authenticated")
+          } else {
+            // If no user data is returned, set status to unauthenticated
+            setStatus("unauthenticated")
           }
-          
-          if (userData.sessionExpiry) {
-            userData.sessionExpiry = new Date(userData.sessionExpiry)
-          }
-          
-          if (userData.lastLogin) {
-            userData.lastLogin = new Date(userData.lastLogin)
-          }
-          
-          setUser(userData)
-          setStatus("authenticated")
-          
-          // UNCOMMENT THIS LINE TO AUTO-LOGIN AS ADMIN FOR TESTING WHEN API IS NOT AVAILABLE
-          // setUser(mockUsers.admin)
         } catch (err) {
           console.error("Failed to validate authentication:", err)
           setStatus("unauthenticated")
@@ -234,36 +237,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(prev => ({ ...prev, login: true }))
       setError(null)
       
-      // Try to log in with the API
-      try {
-        const response = await authService.login(email, password)
-        setUser(response.user)
-        setStatus("authenticated")
-        return response.user
-      } catch (error: any) {
-        // If API fails, fall back to mock users for testing
-        if (email === "admin@carshare.com") {
-          setUser(mockUsers.admin)
-          setStatus("authenticated")
-          return mockUsers.admin
-        } else if (email === "superadmin@carshare.com") {
-          setUser(mockUsers.superadmin)
-          setStatus("authenticated")
-          return mockUsers.superadmin
-        } else if (email === "owner@carshare.com") {
-          setUser(mockUsers.owner)
-          setStatus("authenticated")
-          return mockUsers.owner
-        } else if (email === "client@carshare.com") {
-          setUser(mockUsers.client)
-          setStatus("authenticated")
-          return mockUsers.client
-        }
-        
-        // If neither API nor mock users work, throw the error
-        throw error
-      }
+      // Use the API for login
+      const response = await authService.login(email, password)
+      setUser(response.user)
+      setStatus("authenticated")
+      return response.user
     } catch (error: any) {
+      console.error("Login failed:", error)
       setError(error?.message || "Login failed. Please check your credentials.")
       throw error
     } finally {
@@ -286,40 +266,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("Email and password are required")
       }
 
-      // FOR TESTING - No backend needed
-      // Create a mock user based on the registration data
-      const mockUser: User = {
-              id: Math.floor(Math.random() * 1000) + 10,
-              name: `${userData.firstName} ${userData.lastName}`,
-              email: userData.email,
-              role: role as "client" | "owner" | "admin" | "superadmin",
-        avatar: "",
-        isVerified: false, // Changed from true to false as new users shouldn't be verified automatically
-        lastLogin: new Date(),
-        sessionExpiry: new Date(Date.now() + 1000 * 60 * 60 * 24)
+      // Call the register API
+      const response = await authService.register(userData, role as string)
+      
+      // Process user data
+      const user = response.user
+      
+      // Transform dates back into Date objects
+      if (user.subscription) {
+        user.subscription.startDate = new Date(user.subscription.startDate)
+        user.subscription.nextBillingDate = new Date(user.subscription.nextBillingDate)
       }
       
-      setUser(mockUser)
+      setUser(user)
       setStatus("authenticated")
-      return mockUser
       
-      // COMMENTED FOR TESTING - No backend needed
-      // Call the register API
-      // const response = await authService.register(userData, role as string)
-      
-      // // Process user data
-      // const user = response.user
-      
-      // // Transform dates back into Date objects
-      // if (user.subscription) {
-      //   user.subscription.startDate = new Date(user.subscription.startDate)
-      //   user.subscription.nextBillingDate = new Date(user.subscription.nextBillingDate)
-      // }
-      
-      // setUser(user)
-      // setStatus("authenticated")
-      
-      // return user
+      return user
     } catch (err) {
       console.error("Registration failed:", err)
       if (err instanceof Error) {

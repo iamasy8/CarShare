@@ -15,6 +15,7 @@ import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
 import { AlertDescription, Alert } from "@/components/ui/alert"
 import { DateRange } from "react-day-picker"
+import { parseCarFeatures } from "@/lib/utils"
 
 export default function CarDetailsPage({ params }: { params: { id: string } }) {
   const { user, isAuthenticated } = useAuth()
@@ -64,43 +65,9 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
       setError("")
 
       try {
-        if (process.env.NODE_ENV === "development") {
-          // Mock data in development
-          await new Promise(resolve => setTimeout(resolve, 500))
-          
-          // Create a mock car object
-          const mockCar: Car = {
-            id: parseInt(params.id),
-            title: "Peugeot 3008",
-            type: "SUV",
-            make: "Peugeot",
-            model: "3008",
-            price: 65,
-            location: "Rabat, Morocco",
-            features: ["Climatisation", "5 portes", "Caméra de recul", "GPS", "Bluetooth", "Sièges chauffants"],
-            year: 2021,
-            status: "approved",
-    seats: 5,
-            doors: 5,
-            fuel: "diesel",
-            transmission: "automatic",
-            description: "SUV familial spacieux et confortable, parfait pour les voyages en famille ou les déplacements professionnels. Équipé de toutes les options modernes pour assurer votre confort et votre sécurité.",
-    images: [
-              "/placeholder.svg?height=300&width=500",
-              "/placeholder.svg?height=300&width=500",
-              "/placeholder.svg?height=300&width=500"
-            ],
-            ownerId: 2,
-            createdAt: new Date(),
-            updatedAt: new Date()
-          }
-          
-          setCar(mockCar)
-        } else {
-          // In production, fetch from API
-          const carData = await carService.getCar(parseInt(params.id))
-          setCar(carData)
-        }
+        // Always fetch from API
+        const carData = await carService.getCar(parseInt(params.id))
+        setCar(carData)
       } catch (err) {
         console.error("Error fetching car details:", err)
         setError(handleApiError(err, "Impossible de charger les détails de ce véhicule."))
@@ -312,7 +279,7 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
             </TabsContent>
                   <TabsContent value="equipments" className="space-y-4">
               <div className="grid grid-cols-2 gap-2">
-                {car.features.map((feature, index) => (
+                {parseCarFeatures(car.features).map((feature, index) => (
                   <div key={index} className="flex items-center">
                           <svg className="h-4 w-4 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />

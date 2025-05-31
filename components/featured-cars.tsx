@@ -1,60 +1,87 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Heart, Star } from "lucide-react"
+import { Heart, Star, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
-
-// Mock data for featured cars
-const featuredCars = [
-  {
-    id: 1,
-    title: "Renault Clio",
-    type: "Citadine",
-    price: 35,
-    location: "Casablanca, Morocco",
-    rating: 4.8,
-    reviews: 24,
-    image: "/placeholder.svg?height=200&width=300",
-    available: true,
-  },
-  {
-    id: 2,
-    title: "Peugeot 3008",
-    type: "SUV",
-    price: 65,
-    location: "Rabat, Morocco",
-    rating: 4.6,
-    reviews: 18,
-    image: "/placeholder.svg?height=200&width=300",
-    available: true,
-  },
-  {
-    id: 3,
-    title: "BMW Série 3",
-    type: "Berline",
-    price: 85,
-    location: "Marrakech, Morocco",
-    rating: 4.9,
-    reviews: 32,
-    image: "/placeholder.svg?height=200&width=300",
-    available: false,
-  },
-  {
-    id: 4,
-    title: "Volkswagen Golf",
-    type: "Citadine",
-    price: 45,
-    location: "Tangier, Morocco",
-    rating: 4.7,
-    reviews: 15,
-    image: "/placeholder.svg?height=200&width=300",
-    available: true,
-  },
-]
+import { Car } from "@/lib/api"
+import { carService } from "@/lib/api/cars/carService"
+import { useRealApi } from "@/lib/utils"
 
 export default function FeaturedCars() {
+  const [cars, setCars] = useState<Car[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+
+  useEffect(() => {
+    const fetchFeaturedCars = async () => {
+      setLoading(true)
+      try {
+        if (useRealApi()) {
+          // Use the real API
+          const featuredCars = await carService.getFeaturedCars(4)
+          setCars(featuredCars)
+        } else {
+          // Use mock data (fallback)
+          setCars([
+            {
+              id: 1,
+              title: "Renault Clio",
+              make: "Renault",
+              model: "Clio",
+              year: 2022,
+              type: "Citadine",
+              price: 35,
+              location: "Casablanca, Morocco",
+              seats: 5,
+              doors: 5,
+              fuel: "essence",
+              transmission: "manual",
+              description: "Voiture idéale pour la ville",
+              features: [],
+              images: ["/placeholder.svg?height=200&width=300"],
+              ownerId: 1,
+              status: "approved",
+              createdAt: new Date(),
+              updatedAt: new Date()
+            },
+            // Add more mock cars if needed
+          ])
+        }
+      } catch (err) {
+        console.error("Error fetching featured cars:", err)
+        setError("Failed to load featured cars")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchFeaturedCars()
+  }, [])
+
+  if (loading) {
+    return (
+      <section className="py-12 bg-background">
+        <div className="container px-4 md:px-6 mx-auto">
+          <div className="flex flex-col gap-8">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div className="space-y-1">
+                <h2 className="text-3xl font-bold tracking-tighter">Voitures à la une</h2>
+                <p className="text-muted-foreground">Découvrez nos meilleures sélections</p>
+              </div>
+            </div>
+            <div className="flex justify-center items-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin text-red-600" />
+              <span className="ml-2 text-gray-500">Chargement des voitures...</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
   return (
     <section className="py-12 bg-background">
       <div className="container px-4 md:px-6 mx-auto">
@@ -70,7 +97,7 @@ export default function FeaturedCars() {
           </div>
 
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {featuredCars.map((car) => (
+            {cars.map((car) => (
               <Link
                 key={car.id}
                 href={`/cars/${car.id}`}
@@ -78,7 +105,7 @@ export default function FeaturedCars() {
               >
                 <div className="relative aspect-[4/3] overflow-hidden">
                   <img
-                    src={car.image || "/placeholder.svg"}
+                    src={car.images && car.images.length > 0 ? car.images[0] : "/placeholder.svg"}
                     alt={car.title}
                     className="object-cover w-full h-full transition-transform group-hover:scale-105"
                   />
@@ -91,11 +118,6 @@ export default function FeaturedCars() {
                   >
                     <Heart className="h-5 w-5" />
                   </button>
-                  {!car.available && (
-                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                      <Badge className="bg-red-600 text-white px-3 py-1.5 text-sm font-medium">Non disponible</Badge>
-                    </div>
-                  )}
                 </div>
                 <div className="flex flex-col p-4 flex-1">
                   <div className="flex justify-between items-start">
@@ -131,14 +153,6 @@ export default function FeaturedCars() {
                       />
                     </svg>
                     {car.location}
-                  </div>
-                  <div className="mt-auto pt-4 flex items-center">
-                    <div className="flex items-center">
-                      <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                      <span className="ml-1 text-sm font-medium">{car.rating}</span>
-                    </div>
-                    <span className="mx-1.5 text-muted-foreground text-sm">•</span>
-                    <span className="text-sm text-muted-foreground">{car.reviews} avis</span>
                   </div>
                 </div>
               </Link>

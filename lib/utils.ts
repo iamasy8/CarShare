@@ -187,3 +187,29 @@ export const validateFiles = (
   
   return { valid: true };
 };
+
+/**
+ * Determines whether to use real API data instead of mock data
+ * Returns true if NEXT_PUBLIC_USE_REAL_API is set to true or if in production mode
+ */
+export const useRealApi = () => {
+  return process.env.NEXT_PUBLIC_USE_REAL_API === 'true' || process.env.NODE_ENV === 'production';
+};
+
+/**
+ * Safely parse car features that might be a JSON string or already an array
+ */
+export const parseCarFeatures = (features: string | string[] | null | undefined): string[] => {
+  if (!features) return [];
+  
+  if (typeof features === 'string') {
+    try {
+      return JSON.parse(features);
+    } catch (e) {
+      console.error('Error parsing car features:', e);
+      return [];
+    }
+  }
+  
+  return features;
+};

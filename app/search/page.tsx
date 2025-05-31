@@ -14,6 +14,7 @@ import { Car, carService } from "@/lib/api"
 import { carHelpers, handleApiError } from "@/lib/api-helpers"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { parseCarFeatures } from "@/lib/utils"
 
 // Type definitions
 interface FilterState {
@@ -114,138 +115,11 @@ export default function SearchPage() {
         if (filters.availableOnly) queryParams.available = true;
         if (filters.searchTerm) queryParams.search = filters.searchTerm;
 
-        // In development mode, we'll use mock data
-        if (process.env.NODE_ENV === "development") {
-          // Mock filtering logic for development
-          await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API delay
-          
-          // Mock cars data - in production this would come from the API
-          const mockCars = [
-  {
-    id: 1,
-    title: "Renault Clio",
-    type: "Citadine",
-              make: "Renault",
-              model: "Clio",
-    price: 35,
-              location: "Casablanca, Morocco",
-    features: ["Climatisation", "5 portes", "Bluetooth", "GPS"],
-    year: 2020,
-              status: "approved" as const,
-              seats: 5,
-              doors: 5,
-              fuel: "gasoline",
-              transmission: "automatic",
-              description: "Petite citadine idéale pour la ville",
-              images: ["/placeholder.svg?height=200&width=300"],
-              ownerId: 1,
-              createdAt: new Date(),
-              updatedAt: new Date()
-  },
-  {
-    id: 2,
-    title: "Peugeot 3008",
-    type: "SUV",
-              make: "Peugeot",
-              model: "3008",
-    price: 65,
-              location: "Rabat, Morocco",
-    features: ["Climatisation", "5 portes", "Caméra de recul", "GPS"],
-    year: 2021,
-              status: "approved" as const,
-              seats: 5,
-              doors: 5,
-              fuel: "diesel",
-              transmission: "automatic",
-              description: "SUV familial spacieux et confortable",
-              images: ["/placeholder.svg?height=200&width=300"],
-              ownerId: 2,
-              createdAt: new Date(),
-              updatedAt: new Date()
-  },
-  {
-    id: 3,
-    title: "BMW Série 3",
-    type: "Berline",
-              make: "BMW",
-              model: "Série 3",
-    price: 85,
-              location: "Marrakech, Morocco",
-    features: ["Climatisation", "4 portes", "Sièges cuir", "GPS"],
-    year: 2019,
-              status: "approved" as const,
-              seats: 5,
-              doors: 4,
-              fuel: "gasoline",
-              transmission: "automatic",
-              description: "Berline sportive et élégante",
-              images: ["/placeholder.svg?height=200&width=300"],
-              ownerId: 3,
-              createdAt: new Date(),
-              updatedAt: new Date()
-            },
-          ];
-          
-          // Apply filters to mock data
-          let filteredCars = [...mockCars];
-          
-          // Filter by price
-          filteredCars = filteredCars.filter(car => 
-            car.price >= filters.priceRange[0] && car.price <= filters.priceRange[1]
-          );
-          
-          // Filter by type
-          if (filters.types.length > 0) {
-            filteredCars = filteredCars.filter(car => filters.types.includes(car.type));
-          }
-          
-          // Filter by make
-          if (filters.makes.length > 0) {
-            filteredCars = filteredCars.filter(car => filters.makes.includes(car.make));
-          }
-          
-          // Filter by features
-          if (filters.features.length > 0) {
-            filteredCars = filteredCars.filter(car => 
-              filters.features.some(feature => car.features.includes(feature))
-            );
-          }
-          
-          // Filter by search term
-          if (filters.searchTerm) {
-            const searchLower = filters.searchTerm.toLowerCase();
-            filteredCars = filteredCars.filter(car => 
-              car.title.toLowerCase().includes(searchLower) ||
-              car.make.toLowerCase().includes(searchLower) ||
-              car.model.toLowerCase().includes(searchLower) ||
-              car.location.toLowerCase().includes(searchLower)
-            );
-          }
-          
-          // Sort
-          switch (filters.sortBy) {
-            case "price-asc":
-              filteredCars.sort((a, b) => a.price - b.price);
-              break;
-            case "price-desc":
-              filteredCars.sort((a, b) => b.price - a.price);
-              break;
-            case "newest":
-              filteredCars.sort((a, b) => b.year - a.year);
-              break;
-            default:
-              break;
-          }
-          
-          setCars(filteredCars);
-          setCount(filteredCars.length);
-        } else {
-          // In production, call the actual API
+        // Always use the actual API
           const response = await carService.getCars(queryParams);
           setCars(response);
           // In a real API response, we might also get a total count
           setCount(response.length);
-        }
       } catch (err) {
         console.error("Error fetching cars:", err);
         setError(handleApiError(err, "Failed to load cars. Please try again."));
@@ -844,14 +718,14 @@ export default function SearchPage() {
                       </div>
 
                       <div className="mt-4 flex flex-wrap gap-2">
-                            {car.features.slice(0, 4).map((feature, index) => (
+                        {parseCarFeatures(car.features).slice(0, 4).map((feature, index) => (
                           <Badge key={index} variant="outline" className="bg-gray-50">
                             {feature}
                           </Badge>
                         ))}
-                            {car.features.length > 4 && (
+                        {parseCarFeatures(car.features).length > 4 && (
                               <Badge variant="outline" className="bg-gray-50">
-                                +{car.features.length - 4}
+                            +{parseCarFeatures(car.features).length - 4}
                               </Badge>
                             )}
                       </div>

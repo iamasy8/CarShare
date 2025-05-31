@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch"
 import { Car, ArrowLeft, Upload, CheckCircle2, Info } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { carService } from "@/lib/api"
+import { useRealApi } from "@/lib/utils"
 
 // Car make options (would come from API)
 const carMakes = [
@@ -109,7 +110,7 @@ export default function NewCarListing() {
         throw new Error("Please upload at least one image of your car")
       }
       
-      if (process.env.NODE_ENV === "production") {
+      if (useRealApi()) {
         // Prepare form data for API
         const formDataToSend = new FormData();
         

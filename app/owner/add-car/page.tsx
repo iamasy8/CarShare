@@ -26,7 +26,7 @@ import { VerificationStatus } from "@/components/owner/verification-status"
 import { FileUpload } from "@/components/ui/file-upload"
 import { useCreateCar } from "@/hooks/useCars"
 import { toast } from "sonner"
-import { cn, handleError, validateFiles } from "@/lib/utils"
+import { cn, handleError, validateFiles, useRealApi } from "@/lib/utils"
 import { carService } from "@/lib/api"
 
 // Car features options
@@ -124,7 +124,7 @@ export default function AddCarPage() {
   useEffect(() => {
     const getCarCount = async () => {
       try {
-        if (process.env.NODE_ENV === "production") {
+        if (useRealApi()) {
           const count = await carService.getOwnerCarCount()
           setCarCount(count)
         } else {

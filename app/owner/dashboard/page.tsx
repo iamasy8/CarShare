@@ -14,7 +14,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { bookingService, carService } from "@/lib/api"
 import { ownerDashboardHelpers, bookingHelpers, handleApiError, DashboardSummary, Notification } from "@/lib/api-helpers"
-import { handleError } from "@/lib/utils"
+import { handleError, useRealApi } from "@/lib/utils"
 
 // Define a type for our mock bookings to match the expected structure
 interface MockBooking {
@@ -100,7 +100,7 @@ export default function OwnerDashboard() {
   // Improved unread message count functionality
   const getUnreadMessagesCount = async (): Promise<number> => {
     try {
-      if (process.env.NODE_ENV === "production") {
+      if (useRealApi()) {
         // In production, this would call the API
         const response = await fetch('/api/messages/unread/count')
         const data = await response.json()
@@ -118,44 +118,49 @@ export default function OwnerDashboard() {
   // Fetch owner dashboard data
   useEffect(() => {
     const fetchDashboardData = async () => {
-      if (status !== "authenticated" || !isOwner) return;
-      
-      setIsLoading(true);
-      setError("");
-      
-      try {
-        if (process.env.NODE_ENV === "production") {
-          // Fetch listings
-          const listings = await carService.getOwnerCars();
-          const activeListings = listings.filter(l => l.status === "approved").length;
+      if (status === "authenticated" && isOwner) {
+        if (useRealApi()) {
+          setIsLoading(true);
+          setError("");
           
-          // Fetch bookings
-          const bookings = await bookingService.getBookings();
-          const pendingBookings = bookings.filter(b => b.status === "pending").length;
-          
-          // Calculate earnings
-          const earnings = ownerDashboardHelpers.calculateEarningsSummary(bookings);
-          
-          // Get recent bookings (last 3) and map to MockBooking format for consistency
-          const recentBookings: MockBooking[] = bookings
-            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-            .slice(0, 3)
-            .map(booking => convertApiBookingToMockBooking(booking));
-          
-          // Get unread message count
-          const unreadCount = await getUnreadMessagesCount();
-          
-          // Get notifications with proper read/unread status
-          const notifications = await fetch('/api/notifications').then(res => res.json());
-          
-          setDashboardData({
-            activeListings,
-            pendingBookings,
-            totalEarnings: earnings.monthly,
-            pendingEarnings: earnings.pending,
-            recentBookings,
-            notifications
-          });
+          try {
+            // Fetch listings
+            const listings = await carService.getOwnerCars();
+            const activeListings = listings.filter(l => l.status === "approved").length;
+            
+            // Fetch bookings
+            const bookings = await bookingService.getBookings();
+            const pendingBookings = bookings.filter(b => b.status === "pending").length;
+            
+            // Calculate earnings
+            const earnings = ownerDashboardHelpers.calculateEarningsSummary(bookings);
+            
+            // Get recent bookings (last 3) and map to MockBooking format for consistency
+            const recentBookings: MockBooking[] = bookings
+              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+              .slice(0, 3)
+              .map(booking => convertApiBookingToMockBooking(booking));
+            
+            // Get unread message count
+            const unreadCount = await getUnreadMessagesCount();
+            
+            // Get notifications with proper read/unread status
+            const notifications = await fetch('/api/notifications').then(res => res.json());
+            
+            setDashboardData({
+              activeListings,
+              pendingBookings,
+              totalEarnings: earnings.monthly,
+              pendingEarnings: earnings.pending,
+              recentBookings,
+              notifications
+            });
+          } catch (err) {
+            console.error("Error fetching dashboard data:", err);
+            setError(handleError(err, "Failed to load dashboard data"));
+          } finally {
+            setIsLoading(false);
+          }
         } else {
           // For development, use mock data
           const unreadCount = await getUnreadMessagesCount();
@@ -172,11 +177,6 @@ export default function OwnerDashboard() {
           // Simulate API delay
           await new Promise(resolve => setTimeout(resolve, 800));
         }
-      } catch (err) {
-        console.error("Error fetching dashboard data:", err);
-        setError(handleError(err, "Failed to load dashboard data"));
-      } finally {
-        setIsLoading(false);
       }
     };
     
@@ -186,7 +186,7 @@ export default function OwnerDashboard() {
   // Handle booking approval - update function to handle our mock booking type
   const handleApproveBooking = async (bookingId: number) => {
     try {
-      if (process.env.NODE_ENV === "production") {
+      if (useRealApi()) {
         await bookingService.updateBookingStatus(bookingId, "confirmed");
         
         // Refresh dashboard data
@@ -227,7 +227,7 @@ export default function OwnerDashboard() {
   // Handle booking rejection - update function to handle our mock booking type
   const handleRejectBooking = async (bookingId: number) => {
     try {
-      if (process.env.NODE_ENV === "production") {
+      if (useRealApi()) {
         await bookingService.updateBookingStatus(bookingId, "rejected");
         
         // Refresh dashboard data

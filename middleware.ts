@@ -194,6 +194,12 @@ export function middleware(request: NextRequest) {
     }
   }
 
+  // Add Content Security Policy header
+  response.headers.set(
+    'Content-Security-Policy',
+    `default-src 'self'; connect-src 'self' http://localhost:8000 http://localhost:8000/api; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://images.unsplash.com https://ui-avatars.com;`
+  )
+
   return response
 }
 

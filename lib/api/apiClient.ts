@@ -82,28 +82,48 @@ export default class ApiClient {
   }
   
   async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.client.get<ApiResponse<T>>(url, config);
-    return response.data.data;
+    const response = await this.client.get(url, config);
+    // Handle both formats: { data, success, message } or direct data
+    if (response.data && typeof response.data === 'object' && 'data' in response.data && 'success' in response.data) {
+      return response.data.data as T;
+    }
+    return response.data as T;
   }
   
   async post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.client.post<ApiResponse<T>>(url, data, config);
-    return response.data.data;
+    const response = await this.client.post(url, data, config);
+    // Handle both formats: { data, success, message } or direct data
+    if (response.data && typeof response.data === 'object' && 'data' in response.data && 'success' in response.data) {
+      return response.data.data as T;
+    }
+    return response.data as T;
   }
   
   async put<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.client.put<ApiResponse<T>>(url, data, config);
-    return response.data.data;
+    const response = await this.client.put(url, data, config);
+    // Handle both formats: { data, success, message } or direct data
+    if (response.data && typeof response.data === 'object' && 'data' in response.data && 'success' in response.data) {
+      return response.data.data as T;
+    }
+    return response.data as T;
   }
   
   async delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.client.delete<ApiResponse<T>>(url, config);
-    return response.data.data;
+    const response = await this.client.delete(url, config);
+    // Handle both formats: { data, success, message } or direct data
+    if (response.data && typeof response.data === 'object' && 'data' in response.data && 'success' in response.data) {
+      return response.data.data as T;
+    }
+    return response.data as T;
   }
   
   async patch<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.client.patch<ApiResponse<T>>(url, data, config);
-    return response.data.data;
+    const response = await this.client.patch(url, data, config);
+    // Handle both formats: { data, success, message } or direct data
+    if (response.data && typeof response.data === 'object' && 'data' in response.data && 'success' in response.data) {
+      return response.data.data as T;
+    }
+    return response.data as T;
   }
   
   private async refreshToken(): Promise<void> {

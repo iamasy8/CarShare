@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { ArrowLeft, Car, Calendar, MapPin, User, Clock, CreditCard, MessageCircle, CheckCircle2, X, AlertCircle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { bookingService, messageService, Booking as ApiBooking } from "@/lib/api"
+import { useRealApi } from "@/lib/utils"
 
 // Define a local booking type that includes UI-specific fields
 interface BookingDetails {
@@ -120,7 +121,7 @@ export default function BookingDetails({ params }: { params: { id: string } }) {
       setError("")
       
       try {
-        if (process.env.NODE_ENV === "production") {
+        if (useRealApi()) {
           // In production, use the actual API
           const apiBooking = await bookingService.getBooking(Number(params.id))
           // Convert API response to UI format
@@ -151,7 +152,7 @@ export default function BookingDetails({ params }: { params: { id: string } }) {
     setSuccess("")
     
     try {
-      if (process.env.NODE_ENV === "production") {
+      if (useRealApi()) {
         // In production, use the actual API
         const updatedApiBooking = await bookingService.updateBookingStatus(Number(params.id), "confirmed")
         // Convert API response to UI format
@@ -178,7 +179,7 @@ export default function BookingDetails({ params }: { params: { id: string } }) {
     setSuccess("")
     
     try {
-      if (process.env.NODE_ENV === "production") {
+      if (useRealApi()) {
         // In production, use the actual API
         const updatedApiBooking = await bookingService.updateBookingStatus(Number(params.id), "rejected")
         // Convert API response to UI format
@@ -211,7 +212,7 @@ export default function BookingDetails({ params }: { params: { id: string } }) {
     setError("")
     
     try {
-      if (process.env.NODE_ENV === "production") {
+      if (useRealApi()) {
         // In production, use the actual API
         await messageService.sendMessage({
           recipientId: booking.client.id,

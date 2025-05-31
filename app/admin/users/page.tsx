@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/dialog"
 import { Check, ChevronDown, Edit, Eye, MoreHorizontal, Search, Shield, Trash, User, X } from "lucide-react"
 import AdminSidebar from "@/components/admin/admin-sidebar"
-import { cn, handleError, formatDate } from "@/lib/utils"
+import { cn, handleError, formatDate, useRealApi } from "@/lib/utils"
 
 // Mock data for users
 const users = [
@@ -99,6 +99,8 @@ export default function AdminUsersPage() {
   const [openDialog, setOpenDialog] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [users, setUsers] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
 
   // Filter users based on selected tab and search query
   const filteredUsers = users
@@ -198,6 +200,34 @@ export default function AdminUsersPage() {
         return <Badge>Inconnu</Badge>
     }
   }
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      setIsLoading(true)
+      setError("")
+      
+      try {
+        if (useRealApi()) {
+          // In production, use the actual API
+          const userData = await userService.getUsers()
+          setUsers(userData)
+        } else {
+          // For development, use mock data
+          setUsers(users)
+          
+          // Simulate API delay
+          await new Promise(resolve => setTimeout(resolve, 500))
+        }
+      } catch (err) {
+        console.error("Error fetching users:", err)
+        setError("Failed to load user data")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    fetchUsers()
+  }, [])
 
   return (
     <div className="md:pl-64">
