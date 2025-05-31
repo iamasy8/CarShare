@@ -1,30 +1,36 @@
 import { apiClient } from '../apiClient';
 import type { User, RegisterUserData } from '@/lib/auth-context';
 
-export interface LoginResponse {
+export interface AuthResponse {
   user: User;
+  token: string;
 }
 
 class AuthService {
   /**
    * Login with email and password
    */
-  async login(email: string, password: string): Promise<LoginResponse> {
-    return apiClient.post<LoginResponse>('/auth/login', { email, password });
+  async login(email: string, password: string): Promise<AuthResponse> {
+    return apiClient.post<AuthResponse>('/auth/login', { email, password });
   }
   
   /**
    * Register a new user
    */
-  async register(userData: RegisterUserData, role: string): Promise<LoginResponse> {
-    return apiClient.post<LoginResponse>('/auth/register', { ...userData, role });
+  async register(userData: RegisterUserData, role: string): Promise<AuthResponse> {
+    return apiClient.post<AuthResponse>('/auth/register', { ...userData, role });
   }
   
   /**
    * Logout the current user
    */
   async logout(): Promise<void> {
-    return apiClient.post<void>('/auth/logout');
+    try {
+      await apiClient.post<void>('/auth/logout');
+    } finally {
+      // Clear token regardless of API response
+      apiClient.clearToken();
+    }
   }
   
   /**
@@ -48,8 +54,13 @@ class AuthService {
   /**
    * Refresh the authentication token
    */
-  async refreshToken(): Promise<void> {
-    return apiClient.post<void>('/auth/refresh-token');
+  async refreshToken(): Promise<AuthResponse | null> {
+    try {
+      return apiClient.post<AuthResponse>('/auth/refresh-token');
+    } catch (error) {
+      console.error('Failed to refresh token:', error);
+      return null;
+    }
   }
   
   /**
@@ -96,6 +107,23 @@ class AuthService {
     } catch (error) {
       return false;
     }
+  }
+  
+  /**
+   * Get the stored auth token
+   */
+  getToken(): string | null {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('auth_token');
+    }
+    return null;
+  }
+  
+  /**
+   * Check if the user has a stored token
+   */
+  hasToken(): boolean {
+    return !!this.getToken();
   }
 }
 

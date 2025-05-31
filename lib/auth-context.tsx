@@ -32,10 +32,10 @@ export interface User {
 
 // User registration data type
 export interface RegisterUserData {
+  name: string
   email: string
   password: string
-  firstName: string
-  lastName: string
+  password_confirmation?: string
   [key: string]: any  // For additional fields
 }
 
@@ -154,7 +154,7 @@ const mockUsers = {
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null)
-  const [status, setStatus] = useState<UserStatus>("unauthenticated")
+  const [status, setStatus] = useState<UserStatus>("loading")
   const [loading, setLoading] = useState({
     login: false,
     register: false,
@@ -169,34 +169,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       try {
         setStatus("loading")
         
-        try {
-          // Fetch user profile from the API
-          const userData = await authService.getProfile()
-          
-          // Make sure we have valid user data before proceeding
-          if (userData) {
-            // Transform dates into Date objects if needed
-            if (userData.subscription) {
-              userData.subscription.startDate = new Date(userData.subscription.startDate)
-              userData.subscription.nextBillingDate = new Date(userData.subscription.nextBillingDate)
-            }
+        // Check if we have a token stored
+        if (authService.hasToken()) {
+          try {
+            // Fetch user profile from the API
+            const userData = await authService.getProfile()
             
-            if (userData.sessionExpiry) {
-              userData.sessionExpiry = new Date(userData.sessionExpiry)
+            // Make sure we have valid user data before proceeding
+            if (userData) {
+              // Transform dates into Date objects if needed
+              if (userData.subscription) {
+                userData.subscription.startDate = new Date(userData.subscription.startDate)
+                userData.subscription.nextBillingDate = new Date(userData.subscription.nextBillingDate)
+              }
+              
+              if (userData.sessionExpiry) {
+                userData.sessionExpiry = new Date(userData.sessionExpiry)
+              }
+              
+              if (userData.lastLogin) {
+                userData.lastLogin = new Date(userData.lastLogin)
+              }
+              
+              setUser(userData)
+              setStatus("authenticated")
+            } else {
+              // If no user data is returned, set status to unauthenticated
+              setStatus("unauthenticated")
             }
-            
-            if (userData.lastLogin) {
-              userData.lastLogin = new Date(userData.lastLogin)
-            }
-            
-            setUser(userData)
-            setStatus("authenticated")
-          } else {
-            // If no user data is returned, set status to unauthenticated
+          } catch (err) {
+            console.error("Failed to validate authentication:", err)
+            // Clear invalid token
+            authService.logout()
             setStatus("unauthenticated")
           }
-        } catch (err) {
-          console.error("Failed to validate authentication:", err)
+        } else {
+          // No token found
           setStatus("unauthenticated")
         }
       } catch (err) {
@@ -254,43 +262,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Register function
   const register = async (userData: RegisterUserData, role: UserRole = "client"): Promise<User> => {
     try {
-      if (role === null) {
-        throw new Error("Invalid role specified")
-      }
-      
       setLoading(prev => ({ ...prev, register: true }))
       setError(null)
       
-      // Basic validation
-      if (!userData.email || !userData.password) {
-        throw new Error("Email and password are required")
-      }
-
-      // Call the register API
-      const response = await authService.register(userData, role as string)
-      
-      // Process user data
-      const user = response.user
-      
-      // Transform dates back into Date objects
-      if (user.subscription) {
-        user.subscription.startDate = new Date(user.subscription.startDate)
-        user.subscription.nextBillingDate = new Date(user.subscription.nextBillingDate)
+      if (!role) {
+        throw new Error("Role is required for registration")
       }
       
-      setUser(user)
+      // Use the API for registration
+      const response = await authService.register(userData, role)
+      setUser(response.user)
       setStatus("authenticated")
-      
-      return user
-    } catch (err) {
-      console.error("Registration failed:", err)
-      if (err instanceof Error) {
-        setError(err.message)
-        throw new Error(err.message)
-      } else {
-        setError("An unknown error occurred during registration")
-        throw new Error("An unknown error occurred during registration")
-      }
+      return response.user
+    } catch (error: any) {
+      console.error("Registration failed:", error)
+      setError(error?.message || "Registration failed. Please try again.")
+      throw error
     } finally {
       setLoading(prev => ({ ...prev, register: false }))
     }
@@ -299,21 +286,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Logout function
   const logout = async () => {
     try {
-      // Try to log out with the API
-      try {
-        await authService.logout()
-      } catch (error) {
-        console.error("API logout failed, proceeding with client-side logout", error)
-      }
-      
-      // Always clear the local user state
+      await authService.logout()
+    } catch (error) {
+      console.error("Logout error:", error)
+    } finally {
+      // Always clear user state regardless of API response
       setUser(null)
       setStatus("unauthenticated")
-      
-      // Redirect to login page
       router.push("/login")
-    } catch (error) {
-      console.error("Logout failed", error)
     }
   }
 
@@ -323,33 +303,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(prev => ({ ...prev, updateSubscription: true }))
       setError(null)
       
-      // Call subscription update API through the subscription service
-      // const updatedUser = await subscriptionService.updateSubscription(subscription)
+      // Call API to update subscription
+      await authService.updateProfile({ 
+        subscription: {
+          ...subscription,
+          startDate: new Date(),
+          nextBillingDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
+        } 
+      })
       
-      // For now, just update the user state directly
-      // This should be replaced with an actual API call when backend is ready
+      // Update user state with new subscription
       if (user) {
-            const updatedUser = { 
-              ...user, 
-              subscription: {
+        setUser({
+          ...user,
+          subscription: {
             ...subscription,
-                startDate: new Date(),
-            nextBillingDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-              } 
-            }
-            
-            setUser(updatedUser)
+            startDate: new Date(),
+            nextBillingDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+          }
+        })
       }
-      
-    } catch (err) {
-      console.error("Failed to update subscription:", err)
-      if (err instanceof Error) {
-        setError(err.message)
-        throw new Error(err.message)
-      } else {
-        setError("An unknown error occurred while updating subscription")
-        throw new Error("An unknown error occurred while updating subscription")
-      }
+    } catch (error: any) {
+      console.error("Subscription update failed:", error)
+      setError(error?.message || "Failed to update subscription. Please try again.")
+      throw error
     } finally {
       setLoading(prev => ({ ...prev, updateSubscription: false }))
     }
@@ -362,30 +339,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!user?.sessionExpiry) return false
     
     const now = new Date()
-    const isExpired = now > user.sessionExpiry
+    const sessionExpiry = new Date(user.sessionExpiry)
     
-    if (isExpired) {
-      // Trigger logout automatically
-      logout()
-    }
-    
-    return isExpired
+    return now > sessionExpiry
   }
 
-  // Log admin actions
+  // Log admin actions for audit trail
   const logAdminAction = async (action: string, details: any = {}): Promise<void> => {
     if (!user || (user.role !== "admin" && user.role !== "superadmin")) {
+      console.error("Only admins can log actions")
       return
     }
     
     try {
-      // In production, this would call the API to log admin actions
-      console.log(`Admin action: ${action} by ${user.email} at ${new Date().toISOString()}`, details)
-      
-      // const response = await api.post('/admin/audit-log', {
-      //   action,
-      //   details: JSON.stringify(details),
-      // })
+      // In a real implementation, this would call an API endpoint
+      console.log(`Admin action logged: ${action}`, {
+        adminId: user.id,
+        action,
+        timestamp: new Date(),
+        details
+      })
     } catch (error) {
       console.error("Failed to log admin action:", error)
     }
@@ -393,84 +366,73 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Extend session
   const extendSession = async (): Promise<void> => {
-    if (!user) return
-    
     try {
-      // Call token refresh API
-      await authService.refreshToken()
+      if (!user) return
       
-      // Update session expiry with a configurable duration
-      const SESSION_DURATION_MS = 60 * 60 * 1000 // 1 hour in milliseconds
-      const extendedUser = {
-        ...user,
-        sessionExpiry: new Date(Date.now() + SESSION_DURATION_MS)
+      // Refresh token
+      const refreshResponse = await authService.refreshToken()
+      
+      if (refreshResponse) {
+        // Update session expiry
+        const newExpiry = new Date(Date.now() + 60 * 60 * 1000) // 1 hour from now
+        setUser({
+          ...user,
+          sessionExpiry: newExpiry
+        })
+      } else {
+        // If refresh failed, logout
+        logout()
       }
-      
-      setUser(extendedUser)
     } catch (error) {
       console.error("Failed to extend session:", error)
-      // If refresh token fails, log the user out
+      // If extending session fails, logout
       logout()
     }
   }
-  
+
   // Update user profile
   const updateProfile = async (profileData: Partial<User>): Promise<User> => {
     try {
-      setError(null)
+      if (!user) {
+        throw new Error("User not authenticated")
+      }
       
-      // Call the profile update API
+      // Call API to update profile
       const updatedUser = await authService.updateProfile(profileData)
       
-      // Transform dates back into Date objects
-      if (updatedUser.subscription) {
-        updatedUser.subscription.startDate = new Date(updatedUser.subscription.startDate)
-        updatedUser.subscription.nextBillingDate = new Date(updatedUser.subscription.nextBillingDate)
-      }
-      
-      if (updatedUser.sessionExpiry) {
-        updatedUser.sessionExpiry = new Date(updatedUser.sessionExpiry)
-      }
-      
-      if (updatedUser.lastLogin) {
-        updatedUser.lastLogin = new Date(updatedUser.lastLogin)
-    }
-    
-    setUser(updatedUser)
+      // Update local user state
+      setUser({
+        ...user,
+        ...updatedUser
+      })
       
       return updatedUser
-    } catch (err) {
-      console.error("Profile update failed:", err)
-      if (err instanceof Error) {
-        setError(err.message)
-        throw new Error(err.message)
-      } else {
-        setError("An unknown error occurred while updating profile")
-        throw new Error("An unknown error occurred while updating profile")
-      }
+    } catch (error: any) {
+      console.error("Profile update failed:", error)
+      setError(error?.message || "Failed to update profile. Please try again.")
+      throw error
     }
   }
 
-  // Check permissions for admin users
+  // Check if user has specific permission
   const hasPermission = (permission: AdminPermission): boolean => {
     if (!user) return false
     
-    // Superadmin has all permissions
+    // Super admins have all permissions
     if (user.role === "superadmin") return true
     
-    // Regular admin has permissions based on their assigned permissions
-    if (user.role === "admin" && user.permissions) {
-      // Normalize permission name to handle case differences
-      const normalizedPermission = permission.toLowerCase()
-      return user.permissions.some(p => p.toLowerCase() === normalizedPermission)
-  }
+    // Admins need to check their permissions array
+    if (user.role === "admin") {
+      return user.permissions?.includes(permission) || false
+    }
     
+    // Other roles don't have admin permissions
     return false
   }
 
-  // Calculate derived states
-  const isAuthenticated = status === "authenticated" && user !== null
-  const isAdmin = isAuthenticated && (user?.role === "admin" || user?.role === "superadmin")
+  // Computed properties
+  const isAuthenticated = status === "authenticated" && !!user
+  const isAdmin = isAuthenticated && user?.role === "admin"
   const isSuperAdmin = isAuthenticated && user?.role === "superadmin"
   const isOwner = isAuthenticated && user?.role === "owner"
   const isClient = isAuthenticated && user?.role === "client"
@@ -507,8 +469,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 export function useAuth() {
   const context = useContext(AuthContext)
-  if (context === undefined) {
+  
+  if (!context) {
     throw new Error("useAuth must be used within an AuthProvider")
   }
+  
   return context
 }

@@ -26,6 +26,7 @@ export default class ApiClient {
       baseURL,
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
       },
       withCredentials: true, // This enables sending cookies with requests
     });
@@ -33,11 +34,20 @@ export default class ApiClient {
     // Request interceptor
     this.client.interceptors.request.use(
       (config) => {
+        // Add auth token if available
+        if (typeof window !== 'undefined') {
+          const token = localStorage.getItem('auth_token');
+          if (token) {
+            config.headers['Authorization'] = `Bearer ${token}`;
+          }
+        }
+        
         // Add CSRF token if available
-        const csrfToken = document.cookie
-          .split('; ')
-          .find(row => row.startsWith('XSRF-TOKEN='))
-          ?.split('=')[1];
+        const csrfToken = typeof document !== 'undefined' ? 
+          document.cookie
+            .split('; ')
+            .find(row => row.startsWith('XSRF-TOKEN='))
+            ?.split('=')[1] : null;
         
         if (csrfToken) {
           config.headers['X-XSRF-TOKEN'] = csrfToken;
@@ -50,7 +60,13 @@ export default class ApiClient {
     
     // Response interceptor
     this.client.interceptors.response.use(
-      (response) => response,
+      (response) => {
+        // Store token if it's in the response
+        if (response.data?.data?.token && typeof window !== 'undefined') {
+          localStorage.setItem('auth_token', response.data.data.token);
+        }
+        return response;
+      },
       async (error: AxiosError) => {
         const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
         
@@ -60,13 +76,30 @@ export default class ApiClient {
           
           try {
             // Try to refresh token
-            await this.refreshToken();
+            const refreshResponse = await this.refreshToken();
             
-            // Retry the original request
-            return this.client(originalRequest);
+            // If token refresh was successful, retry the original request
+            if (refreshResponse && typeof window !== 'undefined') {
+              const newToken = refreshResponse.token;
+              if (newToken) {
+                localStorage.setItem('auth_token', newToken);
+                this.client.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+                return this.client(originalRequest);
+              }
+            }
+            
+            // If we couldn't get a new token, redirect to login
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('auth_token');
+              window.location.href = '/login';
+            }
+            return Promise.reject(error);
           } catch (refreshError) {
-            // If refresh fails, redirect to login
-            window.location.href = '/login';
+            // If refresh fails, clear token and redirect to login
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('auth_token');
+              window.location.href = '/login';
+            }
             return Promise.reject(refreshError);
           }
         }
@@ -126,8 +159,20 @@ export default class ApiClient {
     return response.data as T;
   }
   
-  private async refreshToken(): Promise<void> {
-    await this.client.post('/auth/refresh-token');
+  private async refreshToken(): Promise<{token: string} | null> {
+    try {
+      const response = await this.client.post('/auth/refresh-token');
+      return response.data?.data || null;
+    } catch (error) {
+      return null;
+    }
+  }
+  
+  // Method to clear authentication token
+  public clearToken(): void {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('auth_token');
+    }
   }
 }
 

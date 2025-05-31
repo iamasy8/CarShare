@@ -135,10 +135,10 @@ export default function RegisterPage() {
     try {
       // Register with the selected role from the active tab
       const userData = {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
+        name: `${formData.firstName} ${formData.lastName}`, // Combine first and last name for backend
         email: formData.email,
         password: formData.password,
+        password_confirmation: formData.confirmPassword, // Add password confirmation
       }
 
       await register(userData, activeTab)
