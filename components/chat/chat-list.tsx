@@ -1,14 +1,27 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Search, Plus } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { Search, Plus, Loader2 } from "lucide-react"
+import { cn, useRealApi } from "@/lib/utils"
+import { messageService } from "@/lib/api/messages/messageService"
+import { useAuth } from "@/lib/auth-context"
+import { useQuery } from "@tanstack/react-query"
+import { format, formatDistanceToNow } from "date-fns"
+import { fr } from "date-fns/locale"
+
+// Define the type for conversation participant
+interface ConversationUser {
+  id: number;
+  name: string;
+  avatar?: string;
+  isOnline?: boolean;
+}
 
 // Mock data for conversations
-const conversations = [
+const mockConversations = [
   {
     id: 1,
     user: {
@@ -91,6 +104,29 @@ const conversations = [
   },
 ]
 
+// Format the time for display
+const formatMessageTime = (date: Date | string) => {
+  if (!date) return "";
+  
+  const messageDate = typeof date === 'string' ? new Date(date) : date;
+  const now = new Date();
+  const diffInDays = Math.floor((now.getTime() - messageDate.getTime()) / (1000 * 60 * 60 * 24));
+  
+  if (diffInDays === 0) {
+    // Today, show time
+    return format(messageDate, 'HH:mm', { locale: fr });
+  } else if (diffInDays === 1) {
+    // Yesterday
+    return 'Hier';
+  } else if (diffInDays < 7) {
+    // Within the last week, show day name
+    return format(messageDate, 'EEE', { locale: fr });
+  } else {
+    // Older, show date
+    return format(messageDate, 'dd/MM', { locale: fr });
+  }
+};
+
 interface ChatListProps {
   onSelectConversation?: (conversationId: number) => void
   selectedConversationId?: number
@@ -99,6 +135,61 @@ interface ChatListProps {
 
 export default function ChatList({ onSelectConversation, selectedConversationId, className }: ChatListProps) {
   const [searchQuery, setSearchQuery] = useState("")
+  const { isAuthenticated } = useAuth()
+  const isUsingRealApi = useRealApi()
+  
+  // Fetch conversations from API
+  const { 
+    data: apiConversations = [], 
+    isLoading, 
+    isError 
+  } = useQuery({
+    queryKey: ['conversations'],
+    queryFn: () => messageService.getConversations(),
+    enabled: isUsingRealApi && isAuthenticated,
+  })
+  
+  // State to hold the conversations data (either mock or real)
+  const [conversations, setConversations] = useState(mockConversations)
+  
+  // Process API data when it changes
+  useEffect(() => {
+    if (isUsingRealApi && isAuthenticated) {
+      if (Array.isArray(apiConversations) && apiConversations.length > 0) {
+        // Transform the API conversations to match our UI format
+        const formattedConversations = apiConversations.map(conv => {
+          // Extract the other user from the conversation
+          const otherUser = conv.otherParticipant || { id: 0, name: "Utilisateur" } as ConversationUser;
+          
+          return {
+            id: conv.id,
+            user: {
+              id: otherUser.id,
+              name: otherUser.name || "Utilisateur",
+              avatar: otherUser.avatar || "/placeholder.svg?height=40&width=40",
+              isOnline: false, // We don't have online status from API
+            },
+            lastMessage: {
+              text: conv.lastMessage?.content || "Nouvelle conversation",
+              time: formatMessageTime(conv.lastMessage?.createdAt || conv.createdAt),
+              isRead: !conv.unreadCount || conv.unreadCount === 0,
+              isOwn: conv.lastMessage?.senderId === otherUser.id,
+            },
+            unreadCount: conv.unreadCount || 0,
+          };
+        });
+        
+        console.log("Formatted conversations:", formattedConversations);
+        setConversations(formattedConversations);
+      } else {
+        // If no conversations, show empty array
+        setConversations([]);
+      }
+    } else {
+      // In development mode with mock data
+      setConversations(mockConversations);
+    }
+  }, [apiConversations, isAuthenticated, isUsingRealApi]);
 
   const filteredConversations = conversations.filter((conversation) =>
     conversation.user.name.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -120,11 +211,24 @@ export default function ChatList({ onSelectConversation, selectedConversationId,
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {filteredConversations.length > 0 ? (
+        {isLoading ? (
+          <div className="flex justify-center items-center h-full p-4">
+            <Loader2 className="h-6 w-6 text-gray-400 animate-spin mr-2" />
+            <p className="text-gray-500">Chargement des conversations...</p>
+          </div>
+        ) : isError ? (
+          <div className="flex flex-col items-center justify-center h-full p-4 text-center">
+            <p className="text-gray-500 dark:text-gray-400 mb-4">Erreur lors du chargement des conversations</p>
+            <Button variant="outline" size="sm" className="gap-1">
+              <Plus className="h-4 w-4" />
+              Nouvelle conversation
+            </Button>
+          </div>
+        ) : filteredConversations.length > 0 ? (
           <ul className="divide-y">
             {filteredConversations.map((conversation) => (
               <li
-                key={conversation.id}
+                key={`conversation-${conversation.id}`}
                 className={cn(
                   "hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer",
                   selectedConversationId === conversation.id && "bg-gray-100 dark:bg-gray-800",

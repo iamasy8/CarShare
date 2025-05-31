@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Camera, Check, Star, Upload } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { RouteProtection } from "@/components/route-protection"
+import { formatDate } from "@/lib/utils"
 
 // Form schema
 const profileFormSchema = z.object({
@@ -32,9 +33,10 @@ const profileFormSchema = z.object({
 })
 
 export default function ProfilePage() {
-  const { user } = useAuth()
+  const { user, updateProfile } = useAuth()
   const { toast } = useToast()
   const [isEditing, setIsEditing] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Initialize form with user data
   const form = useForm<z.infer<typeof profileFormSchema>>({
@@ -52,19 +54,34 @@ export default function ProfilePage() {
   })
 
   // Handle form submission
-  function onSubmit(values: z.infer<typeof profileFormSchema>) {
-    // In a real app, you would update the user profile here
-    console.log(values)
-
-    // Show success toast
-    toast({
-      title: "Profil mis à jour",
-      description: "Vos informations ont été enregistrées avec succès.",
-      variant: "success",
-    })
-
-    // Exit edit mode
-    setIsEditing(false)
+  async function onSubmit(values: z.infer<typeof profileFormSchema>) {
+    try {
+      setIsSubmitting(true)
+      
+      // Call the updateProfile API method
+      await updateProfile(values)
+      
+      // Show success toast
+      toast({
+        title: "Profil mis à jour",
+        description: "Vos informations ont été enregistrées avec succès.",
+        variant: "success",
+      })
+      
+      // Exit edit mode
+      setIsEditing(false)
+    } catch (error) {
+      console.error("Profile update error:", error)
+      
+      // Show error toast
+      toast({
+        title: "Erreur",
+        description: "Une erreur est survenue lors de la mise à jour de votre profil.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -142,7 +159,7 @@ export default function ProfilePage() {
 
                       <div className="flex items-center mb-2">
                         <Star className="h-4 w-4 text-red-600 mr-2" />
-                        <span className="text-sm font-medium">Note moyenne: 4.8/5</span>
+                        <span className="text-sm font-medium">Note moyenne: {user?.rating || 4.8}/5</span>
                       </div>
                       <div className="text-sm text-gray-500 dark:text-gray-400">Basée sur 12 évaluations</div>
                     </div>
@@ -176,6 +193,7 @@ export default function ProfilePage() {
                               : "bg-red-600 hover:bg-red-700"
                           }
                           onClick={() => setIsEditing(!isEditing)}
+                          disabled={isSubmitting}
                         >
                           {isEditing ? "Annuler" : "Modifier"}
                         </Button>
@@ -311,8 +329,12 @@ export default function ProfilePage() {
                             </div>
 
                             <div className="flex justify-end">
-                              <Button type="submit" className="bg-red-600 hover:bg-red-700">
-                                Enregistrer les modifications
+                              <Button 
+                                type="submit" 
+                                className="bg-red-600 hover:bg-red-700"
+                                disabled={isSubmitting}
+                              >
+                                {isSubmitting ? "Enregistrement..." : "Enregistrer les modifications"}
                               </Button>
                             </div>
                           </form>
@@ -337,7 +359,7 @@ export default function ProfilePage() {
 
                             <div>
                               <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Membre depuis</h3>
-                              <p className="mt-1">Janvier 2023</p>
+                              <p className="mt-1">{user?.joined_date ? formatDate(user.joined_date) : "Janvier 2023"}</p>
                             </div>
                           </div>
 

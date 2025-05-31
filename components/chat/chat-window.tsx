@@ -6,11 +6,15 @@ import { useState, useRef, useEffect } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { MoreVertical, Phone, Video, ImageIcon, Paperclip, Send, Info, ChevronLeft } from "lucide-react"
+import { MoreVertical, Phone, Video, ImageIcon, Paperclip, Send, Info, ChevronLeft, Loader2 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { cn } from "@/lib/utils"
+import { cn, useRealApi } from "@/lib/utils"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
+import { messageService, type Message, type Conversation } from "@/lib/api/messages/messageService"
+import { useAuth } from "@/lib/auth-context"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
 
 // Mock data for a conversation
 const mockConversation = {
@@ -83,11 +87,41 @@ interface ChatWindowProps {
 export default function ChatWindow({ conversationId, onBack, className, isMobile = false }: ChatWindowProps) {
   const [newMessage, setNewMessage] = useState("")
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const { isAuthenticated, user } = useAuth()
+  const isUsingRealApi = useRealApi()
+  const queryClient = useQueryClient()
+
+  // Fetch conversation data from API if conversationId is provided
+  const {
+    data: conversationData,
+    isLoading,
+    isError,
+    error
+  } = useQuery({
+    queryKey: ['conversation', conversationId],
+    queryFn: () => messageService.getConversation(conversationId!),
+    enabled: isUsingRealApi && isAuthenticated && !!conversationId,
+  })
+
+  // Mutation for sending a message
+  const sendMessageMutation = useMutation({
+    mutationFn: ({ conversationId, content }: { conversationId: number, content: string }) => 
+      messageService.sendMessage(conversationId, content),
+    onSuccess: () => {
+      // Invalidate the conversation query to refresh messages
+      queryClient.invalidateQueries({ queryKey: ['conversation', conversationId] })
+      queryClient.invalidateQueries({ queryKey: ['conversations'] })
+    },
+    onError: (error) => {
+      console.error('Error sending message:', error)
+      toast.error("Impossible d'envoyer le message")
+    }
+  })
 
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [mockConversation.messages])
+  }, [conversationData])
 
   // If no conversation is selected, show empty state
   if (!conversationId) {
@@ -103,10 +137,64 @@ export default function ChatWindow({ conversationId, onBack, className, isMobile
     )
   }
 
+  // Show loading state
+  if (isUsingRealApi && isLoading) {
+    return (
+      <div className={cn("flex flex-col h-full items-center justify-center p-4", className)}>
+        <Loader2 className="h-8 w-8 text-red-600 animate-spin mb-4" />
+        <p className="text-gray-500">Chargement de la conversation...</p>
+      </div>
+    )
+  }
+
+  // Show error state
+  if (isUsingRealApi && isError) {
+    return (
+      <div className={cn("flex flex-col h-full items-center justify-center p-4 text-center", className)}>
+        <div className="max-w-md">
+          <h3 className="text-lg font-medium mb-2">Erreur de chargement</h3>
+          <p className="text-gray-500 dark:text-gray-400 mb-4">
+            {error instanceof Error ? error.message : "Une erreur s'est produite lors du chargement de la conversation."}
+          </p>
+          <Button 
+            onClick={() => queryClient.invalidateQueries({ queryKey: ['conversation', conversationId] })}
+            className="bg-red-600 hover:bg-red-700"
+          >
+            Réessayer
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // Determine which data to use (real or mock)
+  const currentUser = user || { id: 0 }
+  let currentConversation: any = { messages: [] }
+  let otherUser = mockConversation.user
+  
+  if (isUsingRealApi && conversationData) {
+    currentConversation = {
+      ...conversationData.conversation,
+      messages: conversationData.messages || []
+    }
+    otherUser = conversationData.conversation.otherParticipant || { id: 0, name: "Utilisateur" }
+  } else {
+    currentConversation = mockConversation
+  }
+
   const handleSendMessage = () => {
     if (newMessage.trim()) {
-      // In a real app, you would send the message to the server here
-      console.log("Sending message:", newMessage)
+      if (isUsingRealApi && isAuthenticated && conversationId) {
+        // Send to real API
+        sendMessageMutation.mutate({ 
+          conversationId, 
+          content: newMessage.trim() 
+        })
+      } else {
+        // Simulate sending in mock mode
+        console.log("Sending message in mock mode:", newMessage)
+      }
+      
       setNewMessage("")
     }
   }
@@ -118,9 +206,22 @@ export default function ChatWindow({ conversationId, onBack, className, isMobile
     }
   }
 
+  // Process messages for display
+  let messages = []
+  if (isUsingRealApi && conversationData) {
+    messages = conversationData.messages.map((msg: Message) => ({
+      id: msg.id,
+      text: msg.content,
+      time: new Date(msg.createdAt),
+      isOwn: msg.senderId === currentUser.id
+    }))
+  } else {
+    messages = mockConversation.messages
+  }
+
   // Group messages by date
-  const groupedMessages: { [key: string]: typeof mockConversation.messages } = {}
-  mockConversation.messages.forEach((message) => {
+  const groupedMessages: { [key: string]: any[] } = {}
+  messages.forEach((message) => {
     const date = format(message.time, "P", { locale: fr })
     if (!groupedMessages[date]) {
       groupedMessages[date] = []
@@ -139,13 +240,13 @@ export default function ChatWindow({ conversationId, onBack, className, isMobile
         )}
         <div className="flex items-center flex-1">
           <Avatar className="h-10 w-10 mr-3">
-            <AvatarImage src={mockConversation.user.avatar || "/placeholder.svg"} alt={mockConversation.user.name} />
-            <AvatarFallback>{mockConversation.user.name.charAt(0)}</AvatarFallback>
+            <AvatarImage src={otherUser.avatar || "/placeholder.svg"} alt={otherUser.name} />
+            <AvatarFallback>{otherUser.name.charAt(0)}</AvatarFallback>
           </Avatar>
           <div>
-            <h3 className="font-medium">{mockConversation.user.name}</h3>
+            <h3 className="font-medium">{otherUser.name}</h3>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              {mockConversation.user.isOnline ? "En ligne" : "Hors ligne"}
+              {otherUser.isOnline ? "En ligne" : "Hors ligne"}
             </p>
           </div>
         </div>
@@ -191,10 +292,10 @@ export default function ChatWindow({ conversationId, onBack, className, isMobile
                   {!message.isOwn && (
                     <Avatar className="h-8 w-8">
                       <AvatarImage
-                        src={mockConversation.user.avatar || "/placeholder.svg"}
-                        alt={mockConversation.user.name}
+                        src={otherUser.avatar || "/placeholder.svg"}
+                        alt={otherUser.name}
                       />
-                      <AvatarFallback>{mockConversation.user.name.charAt(0)}</AvatarFallback>
+                      <AvatarFallback>{otherUser.name.charAt(0)}</AvatarFallback>
                     </Avatar>
                   )}
                   <div
@@ -244,9 +345,13 @@ export default function ChatWindow({ conversationId, onBack, className, isMobile
           <Button
             className="bg-red-600 hover:bg-red-700 h-9 w-9 p-0"
             onClick={handleSendMessage}
-            disabled={!newMessage.trim()}
+            disabled={!newMessage.trim() || sendMessageMutation.isPending}
           >
-            <Send className="h-5 w-5" />
+            {sendMessageMutation.isPending ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Send className="h-5 w-5" />
+            )}
           </Button>
         </div>
       </div>

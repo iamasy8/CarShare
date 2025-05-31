@@ -21,6 +21,18 @@ class ApiError extends Error {
 export default class ApiClient {
   private client: AxiosInstance;
   
+  // Field mapping between frontend and backend
+  private fieldMappings = {
+    // Frontend to backend
+    toBackend: {
+      postalCode: 'postal_code',
+    },
+    // Backend to frontend
+    toFrontend: {
+      postal_code: 'postalCode',
+    }
+  };
+  
   constructor(baseURL: string = process.env.NEXT_PUBLIC_API_URL || '/api') {
     this.client = axios.create({
       baseURL,
@@ -53,6 +65,11 @@ export default class ApiClient {
           config.headers['X-XSRF-TOKEN'] = csrfToken;
         }
         
+        // Map frontend field names to backend field names in request data
+        if (config.data && typeof config.data === 'object') {
+          config.data = this.mapFieldsToBackend(config.data);
+        }
+        
         return config;
       },
       (error) => Promise.reject(error)
@@ -65,6 +82,16 @@ export default class ApiClient {
         if (response.data?.data?.token && typeof window !== 'undefined') {
           localStorage.setItem('auth_token', response.data.data.token);
         }
+        
+        // Map backend field names to frontend field names in response data
+        if (response.data) {
+          if (response.data.data) {
+            response.data.data = this.mapFieldsToFrontend(response.data.data);
+          } else {
+            response.data = this.mapFieldsToFrontend(response.data);
+          }
+        }
+        
         return response;
       },
       async (error: AxiosError) => {
@@ -112,6 +139,50 @@ export default class ApiClient {
         return Promise.reject(new ApiError(message, status, data));
       }
     );
+  }
+  
+  /**
+   * Maps frontend field names to backend field names
+   */
+  private mapFieldsToBackend(data: any): any {
+    if (!data || typeof data !== 'object') return data;
+    
+    // If it's an array, map each item
+    if (Array.isArray(data)) {
+      return data.map(item => this.mapFieldsToBackend(item));
+    }
+    
+    // Create a new object with mapped fields
+    const result: any = {};
+    
+    for (const [key, value] of Object.entries(data)) {
+      const mappedKey = this.fieldMappings.toBackend[key as keyof typeof this.fieldMappings.toBackend] || key;
+      result[mappedKey] = typeof value === 'object' ? this.mapFieldsToBackend(value) : value;
+    }
+    
+    return result;
+  }
+  
+  /**
+   * Maps backend field names to frontend field names
+   */
+  private mapFieldsToFrontend(data: any): any {
+    if (!data || typeof data !== 'object') return data;
+    
+    // If it's an array, map each item
+    if (Array.isArray(data)) {
+      return data.map(item => this.mapFieldsToFrontend(item));
+    }
+    
+    // Create a new object with mapped fields
+    const result: any = {};
+    
+    for (const [key, value] of Object.entries(data)) {
+      const mappedKey = this.fieldMappings.toFrontend[key as keyof typeof this.fieldMappings.toFrontend] || key;
+      result[mappedKey] = typeof value === 'object' ? this.mapFieldsToFrontend(value) : value;
+    }
+    
+    return result;
   }
   
   async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
