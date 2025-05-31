@@ -24,7 +24,7 @@ export function OwnerSidebar() {
     if (href === "/owner/dashboard" && pathname === "/owner/dashboard") {
       return true
     }
-    return pathname.startsWith(href) && href !== "/owner/dashboard"
+    return (pathname &&pathname.startsWith(href)) && href !== "/owner/dashboard"
   }
   
   const navItems = [

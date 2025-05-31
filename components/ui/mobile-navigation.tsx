@@ -77,7 +77,7 @@ export function MobileNavigation() {
           href={tab.href}
           className={cn(
             "flex flex-1 flex-col items-center justify-center py-2 text-xs",
-            pathname === tab.href || pathname.startsWith(tab.href + "/")
+            pathname === tab.href || (pathname &&pathname.startsWith(tab.href + "/"))
               ? "text-primary" 
               : "text-muted-foreground"
           )}
