@@ -11,8 +11,8 @@ class AuthService {
    * Login with email and password
    */
   async login(email: string, password: string): Promise<AuthResponse> {
-    const response = await apiClient.post<{success: boolean, data: AuthResponse, message: string}>('/auth/login', { email, password });
-    // The apiClient automatically extracts response.data.data, so we get the AuthResponse directly
+    // No need to specify the nested response type since apiClient already extracts data
+    const response = await apiClient.post<AuthResponse>('/auth/login', { email, password });
     return response;
   }
   
@@ -27,8 +27,7 @@ class AuthService {
       password: userData.password,
       role
     };
-    
-    const response = await apiClient.post<{success: boolean, data: AuthResponse, message: string}>('/auth/register', backendUserData);
+    const response = await apiClient.post<AuthResponse>('/auth/register', backendUserData);
     return response;
   }
   
@@ -37,7 +36,12 @@ class AuthService {
    */
   async logout(): Promise<void> {
     try {
+      // Try to call the backend logout endpoint
       await apiClient.post<void>('/auth/logout');
+    } catch (error: any) {
+      // If the endpoint doesn't exist or there's any other error, just log it
+      // We'll still clear the token client-side
+      console.log('Logout API error (continuing with client-side logout):', error.message);
     } finally {
       // Clear token regardless of API response
       apiClient.clearToken();
@@ -67,7 +71,7 @@ class AuthService {
    */
   async refreshToken(): Promise<AuthResponse | null> {
     try {
-      const response = await apiClient.post<{success: boolean, data: AuthResponse, message: string}>('/auth/refresh-token');
+      const response = await apiClient.post<AuthResponse>('/auth/refresh-token');
       return response;
     } catch (error) {
       console.error('Failed to refresh token:', error);

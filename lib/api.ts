@@ -22,7 +22,7 @@ api.interceptors.request.use(
   (config: any) => {
     // For now using localStorage, but will be replaced with cookies
     // in the production implementation
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("auth_token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
