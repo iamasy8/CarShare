@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DatePickerWithRange } from "@/components/date-range-picker"
-import { Car, carService } from "@/lib/api"
+import { Car } from "@/lib/api"
+import { carService } from "@/lib/api/cars/carService"
 import { carHelpers, handleApiError } from "@/lib/api-helpers"
 import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/lib/auth-context"
@@ -17,18 +18,32 @@ import { AlertDescription, Alert } from "@/components/ui/alert"
 import { DateRange } from "react-day-picker"
 import { parseCarFeatures } from "@/lib/utils"
 import React from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+
+// Extended Car type to handle string or array for images and features
+interface ExtendedCar extends Omit<Car, 'images' | 'features'> {
+  images: string[] | string;
+  features: string[] | string;
+}
+
+// Type declaration for React.use
+declare module 'react' {
+  function use<T>(promise: Promise<T> | T): T;
+}
 
 export default function CarDetailsPage({ params }: { params: { id: string } }) {
-  // Unwrap params using React.use()
-  const resolvedParams = React.use(params)
-  const carId = resolvedParams.id
+  // Use React.use() to unwrap params
+  const id = React.use(params).id
+  const carId = id
   
   const { user, isAuthenticated } = useAuth()
   const { toast } = useToast()
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [car, setCar] = useState<Car | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [favoriteLoading, setFavoriteLoading] = useState(false)
   const [dateRange, setDateRange] = useState<{
     from: Date | undefined;
     to: Date | undefined;
@@ -37,6 +52,18 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
     to: undefined,
   })
   const [totalPrice, setTotalPrice] = useState(0)
+
+  // Use React Query to check if car is favorited
+  const { 
+    data: isFavorited = false,
+    refetch: refetchFavoriteStatus,
+    isLoading: isFavoriteLoading
+  } = useQuery({
+    queryKey: ['favorite', parseInt(carId)],
+    queryFn: () => carService.isFavorite(parseInt(carId)),
+    enabled: isAuthenticated && !!carId,
+    initialData: false, // Set initial data to false to ensure heart icon shows as not favorited by default
+  })
 
   // DateRange handler
   const handleDateRangeChange = (range: DateRange | undefined) => {
@@ -77,21 +104,22 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
         }
 
         // Always fetch from API
-        const carData = await carService.getCar(numericCarId)
+        const carData = await carService.getCar(numericCarId) as ExtendedCar
         
         // Ensure car.images is always an array
         if (carData.images && !Array.isArray(carData.images)) {
           // If it's a string (possibly JSON), try to parse it
           if (typeof carData.images === 'string') {
             try {
-              carData.images = JSON.parse(carData.images)
+              // Use type assertion to avoid type errors
+              (carData as any).images = JSON.parse(carData.images)
             } catch (e) {
               // If parsing fails, convert to single-element array
-              carData.images = [carData.images]
+              (carData as any).images = [carData.images]
             }
           } else {
             // If it's not a string or array, make it an empty array
-            carData.images = []
+            (carData as any).images = []
           }
         }
         
@@ -99,16 +127,16 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
         if (carData.features && !Array.isArray(carData.features)) {
           if (typeof carData.features === 'string') {
             try {
-              carData.features = JSON.parse(carData.features)
+              (carData as any).features = JSON.parse(carData.features)
             } catch (e) {
-              carData.features = [carData.features]
+              (carData as any).features = [carData.features]
             }
           } else {
-            carData.features = []
+            (carData as any).features = []
           }
         }
         
-        setCar(carData)
+        setCar(carData as Car)
       } catch (err) {
         console.error("Error fetching car details:", err)
         setError(handleApiError(err, "Impossible de charger les détails de ce véhicule."))
@@ -119,6 +147,55 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
 
     fetchCar()
   }, [carId])
+
+  // Toggle favorite status
+  const toggleFavorite = async () => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Connexion requise",
+        description: "Veuillez vous connecter pour ajouter ce véhicule à vos favoris.",
+        variant: "destructive",
+      })
+      router.push(`/login?redirect=/cars/${carId}`)
+      return
+    }
+    
+    if (!car) return
+    
+    setFavoriteLoading(true)
+    try {
+      const numericCarId = parseInt(carId)
+      
+      if (isFavorited) {
+        await carService.removeFromFavorites(numericCarId)
+        // Invalidate both the specific car favorite status and the favorites list
+        queryClient.setQueryData(['favorite', numericCarId], false)
+        queryClient.invalidateQueries({ queryKey: ['favorites'] })
+        toast({
+          title: "Retiré des favoris",
+          description: "Ce véhicule a été retiré de vos favoris.",
+        })
+      } else {
+        await carService.addToFavorites(numericCarId)
+        // Update both the specific car favorite status and the favorites list
+        queryClient.setQueryData(['favorite', numericCarId], true)
+        queryClient.invalidateQueries({ queryKey: ['favorites'] })
+        toast({
+          title: "Ajouté aux favoris",
+          description: "Ce véhicule a été ajouté à vos favoris.",
+        })
+      }
+    } catch (err) {
+      console.error("Error toggling favorite:", err)
+      toast({
+        title: "Erreur",
+        description: "Impossible de modifier vos favorites. Veuillez réessayer.",
+        variant: "destructive",
+      })
+    } finally {
+      setFavoriteLoading(false)
+    }
+  }
 
   // Handle booking submission
   const handleBooking = async () => {
@@ -216,8 +293,16 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute top-4 right-4 flex gap-2">
-                  <button className="p-2 rounded-full bg-white/80 hover:bg-white text-gray-600 hover:text-red-500">
-                    <Heart className="h-5 w-5" />
+                  <button 
+                    className={`p-2 rounded-full ${isFavorited ? 'bg-red-500 text-white' : 'bg-white/80 hover:bg-white text-gray-600 hover:text-red-500'}`}
+                    onClick={toggleFavorite}
+                    disabled={favoriteLoading || isFavoriteLoading}
+                  >
+                    {favoriteLoading || isFavoriteLoading ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <Heart className={`h-5 w-5 ${isFavorited ? 'fill-current' : ''}`} />
+                    )}
                   </button>
                   <button className="p-2 rounded-full bg-white/80 hover:bg-white text-gray-600 hover:text-blue-500">
                     <Share2 className="h-5 w-5" />

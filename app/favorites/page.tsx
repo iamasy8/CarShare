@@ -207,6 +207,8 @@ export default function FavoritesPage() {
           await carService.removeFromFavorites(favoriteToRemove)
           // Invalidate the favorites query to refresh the data
           queryClient.invalidateQueries({ queryKey: ['favorites'] })
+          // Also invalidate the specific car favorite status
+          queryClient.setQueryData(['favorite', favoriteToRemove], false)
           toast.success("Véhicule retiré des favoris")
         } catch (err) {
           console.error("Error removing from favorites:", err)
