@@ -247,52 +247,30 @@ export default class ApiClient {
       console.log("Sending FormData to:", url);
       console.log("FormData contents:", Array.from(data.entries()));
       
-      // Make sure we're using the right content type
-      const formConfig = {
+      // Make sure we're using the right content type and additional headers for file uploads
+      const formDataConfig = {
         ...config,
         headers: {
-          ...(config?.headers || {}),
+          ...config?.headers,
           'Content-Type': 'multipart/form-data',
           'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
         }
       };
       
       try {
-        const response = await this.client.post(url, data, formConfig);
+        const response = await this.client.post(url, data, formDataConfig);
         
-        // Check if response content-type is HTML
-        const contentType = response.headers['content-type'];
-        if (contentType && contentType.includes('text/html')) {
-          console.error(`API returned HTML instead of JSON for ${url}. This likely indicates a backend routing or authentication issue.`);
-          throw new ApiError('Server returned HTML instead of JSON. Please check your authentication or API configuration.', 500);
-        }
-        
-        // Handle both formats: { data, success, message } or direct data
         if (response.data && typeof response.data === 'object' && 'data' in response.data && 'success' in response.data) {
           return response.data.data as T;
         }
         return response.data as T;
       } catch (error) {
-        console.error("API Error:", error);
-        
-        // Special handling for HTML responses from server
-        if (error instanceof AxiosError) {
-          const contentType = error.response?.headers?.['content-type'];
-          
-          // If response contains HTML
-          if (contentType && contentType.includes('text/html')) {
-            console.error('Server returned HTML instead of JSON. This usually indicates a session timeout or server error.');
-            
-            // Clear token and redirect to login since this is likely an auth issue
-            this.clearToken();
-            if (typeof window !== 'undefined') {
-              window.location.href = '/login?expired=1';
-            }
-            
-            throw new ApiError('Session expired or invalid. Please log in again.', 401);
-          }
+        console.error(`Error posting FormData to ${url}:`, error);
+        if (error instanceof AxiosError && error.response?.data) {
+          const errorMessage = error.response.data.message || 'An error occurred while uploading';
+          throw new ApiError(errorMessage, error.response.status, error.response.data);
         }
-        
         throw error;
       }
     } else {

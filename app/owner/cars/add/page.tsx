@@ -112,104 +112,47 @@ export default function AddCarPage() {
   // Submit handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError("")
+    console.log("Submitting form data:", formData)
+    
+    if (images.length === 0) {
+      setError("Please upload at least one image of your car")
+      return
+    }
+    
     setIsLoading(true)
+    setError("")
     
     try {
-      // Validation
-      if (!formData.make) {
-        throw new Error("Veuillez sélectionner une marque de véhicule")
-      }
+      // Create form data for file upload
+      const carFormData = new FormData()
       
-      if (!formData.model) {
-        throw new Error("Veuillez entrer le modèle du véhicule")
-      }
-      
-      if (!formData.pricePerDay) {
-        throw new Error("Veuillez entrer un prix par jour")
-      }
-      
-      if (!formData.location) {
-        throw new Error("Veuillez entrer la localisation du véhicule")
-      }
-      
-      if (images.length === 0) {
-        throw new Error("Veuillez télécharger au moins une image de votre voiture")
-      }
-      
-      if (images.length > 10) {
-        throw new Error("Vous ne pouvez pas télécharger plus de 10 images")
-      }
-      
-      // Check image sizes
-      for (const image of images) {
-        if (image.size > 5 * 1024 * 1024) { // 5MB
-          throw new Error(`L'image ${image.name} dépasse la taille maximale de 5MB`)
+      // Add all text fields
+      Object.entries(formData).forEach(([key, value]) => {
+        if (key === 'features') {
+          // Handle features object by converting to JSON
+          carFormData.append(key, JSON.stringify(value))
+        } else {
+          carFormData.append(key, String(value))
         }
-      }
+      })
       
+      // Add images
+      images.forEach((image, index) => {
+        carFormData.append(`images[${index}]`, image)
+      })
+      
+      // Use the carService to create the car
       if (useRealApi()) {
-        // Prepare form data for API
-        const formDataToSend = new FormData();
+        const response = await carService.createCar(carFormData)
+        console.log("Car created successfully:", response)
         
-        // Add car details - match backend field names exactly as expected by Laravel
-        formDataToSend.append('make', formData.make);
-        formDataToSend.append('model', formData.model);
-        formDataToSend.append('year', formData.year.toString());
-        formDataToSend.append('type', formData.type);
-        formDataToSend.append('doors', formData.doors.toString());
-        formDataToSend.append('seats', formData.seats.toString());
-        formDataToSend.append('transmission', formData.transmission);
-        formDataToSend.append('fuel', formData.fuelType);
-        formDataToSend.append('price_per_day', formData.pricePerDay.toString());
-        formDataToSend.append('location', formData.location);
-        formDataToSend.append('description', formData.description || '');
+        // Show success message
+        setSuccess(true)
         
-        // Convert features to array of enabled features
-        const featuresArray = Object.entries(formData.features)
-          .filter(([_, value]) => value === true)
-          .map(([key]) => key);
-        
-        // Laravel's validation expects this format
-        formDataToSend.append('features', JSON.stringify(featuresArray));
-        
-        // Add images - Laravel expects this format
-        images.forEach((image, index) => {
-          formDataToSend.append(`images[]`, image);
-        });
-        
-        // Add availability
-        formDataToSend.append('is_available', formData.availableImmediately.toString());
-        
-        console.log("Submitting form data:", Object.fromEntries(formDataToSend.entries()));
-        
-        try {
-          // Send to API
-          await carService.createCar(formDataToSend);
-          
-          // Show success message
-          setSuccess(true);
-          
-          // Redirect after success message
-          setTimeout(() => {
-            router.push("/owner/cars");
-          }, 2000);
-        } catch (apiError: any) {
-          console.error("API Error:", apiError);
-          
-          // Improved error handling
-          if (apiError.data && apiError.data.errors) {
-            // Format validation errors
-            const errorMessages = Object.values(apiError.data.errors).flat();
-            throw new Error(errorMessages.join('\n'));
-          } else if (apiError.data && apiError.data.message) {
-            throw new Error(apiError.data.message);
-          } else if (apiError.message) {
-            throw new Error(apiError.message);
-          } else {
-            throw new Error("Échec de l'ajout du véhicule. Veuillez réessayer.");
-          }
-        }
+        // Redirect after 2 seconds
+        setTimeout(() => {
+          router.push("/owner/cars")
+        }, 2000)
       } else {
         // For development - simulate image upload
         const uploadPromise = new Promise<void>((resolve) => {
@@ -492,6 +435,11 @@ export default function AddCarPage() {
                             src={URL.createObjectURL(image)} 
                             alt={`Car image ${index + 1}`} 
                             className="w-full h-24 object-cover rounded-md"
+                            crossOrigin="anonymous"
+                            onError={(e) => {
+                              console.error(`Failed to load image preview: ${image.name}`);
+                              e.currentTarget.src = "/placeholder.svg";
+                            }}
                           />
                           <Button
                             type="button"
