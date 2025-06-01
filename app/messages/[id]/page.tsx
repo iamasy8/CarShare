@@ -11,6 +11,7 @@ import { ChevronLeft, Car, Calendar, MapPin, Star, MessageSquare } from "lucide-
 import ChatWindow from "@/components/chat/chat-window"
 import ChatList from "@/components/chat/chat-list"
 import { useMediaQuery } from "@/hooks/use-media-query"
+import React from "react"
 
 // Mock data for the car associated with this conversation
 const carData = {
@@ -35,7 +36,9 @@ const carData = {
 export default function ConversationPage() {
   const params = useParams()
   const router = useRouter()
-  const conversationId = Number(params.id)
+  // Unwrap params using React.use() 
+  const resolvedParams = React.use(params)
+  const conversationId = Number(resolvedParams.id)
   const isMobile = useMediaQuery("(max-width: 768px)")
   const [showChatList, setShowChatList] = useState(!isMobile)
 

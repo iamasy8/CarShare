@@ -18,6 +18,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { ChevronLeft, User, Info, CheckCircle, XCircle, FileText, Clock, Shield, X, ChevronRight } from "lucide-react"
 import AdminSidebar from "@/components/admin/admin-sidebar"
+import React from "react"
 
 // Mock data for a car verification request
 const carVerification = {
@@ -67,6 +68,10 @@ const carVerification = {
 }
 
 export default function CarVerificationDetailsPage({ params }: { params: { id: string } }) {
+  // Unwrap params using React.use()
+  const resolvedParams = React.use(params)
+  const carId = resolvedParams.id
+  
   const router = useRouter()
   const [showRejectDialog, setShowRejectDialog] = useState(false)
   const [rejectReason, setRejectReason] = useState("")
@@ -79,7 +84,7 @@ export default function CarVerificationDetailsPage({ params }: { params: { id: s
 
     try {
       // In a real app, you would call an API to approve the verification
-      console.log("Approving car verification:", params.id)
+      console.log("Approving car verification:", carId)
 
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1500))
@@ -100,7 +105,7 @@ export default function CarVerificationDetailsPage({ params }: { params: { id: s
 
     try {
       // In a real app, you would call an API to reject the verification
-      console.log("Rejecting car verification:", params.id, "Reason:", rejectReason)
+      console.log("Rejecting car verification:", carId, "Reason:", rejectReason)
 
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1500))

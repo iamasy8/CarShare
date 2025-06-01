@@ -11,6 +11,7 @@ import { ArrowLeft, Car, Calendar, MapPin, User, Clock, CreditCard, MessageCircl
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { bookingService, messageService, Booking as ApiBooking } from "@/lib/api"
 import { useRealApi } from "@/lib/utils"
+import React from "react"
 
 // Define a local booking type that includes UI-specific fields
 interface BookingDetails {
@@ -105,6 +106,10 @@ const convertApiBookingToUI = (apiBooking: ApiBooking): BookingDetails => {
 };
 
 export default function BookingDetails({ params }: { params: { id: string } }) {
+  // Unwrap params using React.use()
+  const resolvedParams = React.use(params)
+  const bookingId = resolvedParams.id
+  
   const { isOwner, status } = useAuth()
   const router = useRouter()
   const [booking, setBooking] = useState<BookingDetails>(mockBooking)
@@ -123,7 +128,7 @@ export default function BookingDetails({ params }: { params: { id: string } }) {
       try {
         if (useRealApi()) {
           // In production, use the actual API
-          const apiBooking = await bookingService.getBooking(Number(params.id))
+          const apiBooking = await bookingService.getBooking(Number(bookingId))
           // Convert API response to UI format
           setBooking(convertApiBookingToUI(apiBooking))
         } else {
@@ -140,10 +145,10 @@ export default function BookingDetails({ params }: { params: { id: string } }) {
       }
     }
     
-    if (params.id) {
+    if (bookingId) {
       fetchBooking()
     }
-  }, [params.id])
+  }, [bookingId])
   
   // Approve booking
   const handleApprove = async () => {
@@ -154,7 +159,7 @@ export default function BookingDetails({ params }: { params: { id: string } }) {
     try {
       if (useRealApi()) {
         // In production, use the actual API
-        const updatedApiBooking = await bookingService.updateBookingStatus(Number(params.id), "confirmed")
+        const updatedApiBooking = await bookingService.updateBookingStatus(Number(bookingId), "confirmed")
         // Convert API response to UI format
         setBooking(convertApiBookingToUI(updatedApiBooking))
       } else {
@@ -181,7 +186,7 @@ export default function BookingDetails({ params }: { params: { id: string } }) {
     try {
       if (useRealApi()) {
         // In production, use the actual API
-        const updatedApiBooking = await bookingService.updateBookingStatus(Number(params.id), "rejected")
+        const updatedApiBooking = await bookingService.updateBookingStatus(Number(bookingId), "rejected")
         // Convert API response to UI format
         setBooking(convertApiBookingToUI(updatedApiBooking))
       } else {

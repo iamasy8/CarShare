@@ -103,6 +103,7 @@ export const carHelpers = {
       "pickup": "Pickup"
     };
     
+    if (!type) return "Not specified";
     return types[type.toLowerCase()] || type;
   },
   
@@ -117,6 +118,7 @@ export const carHelpers = {
       "hydrogen": "Hydrogen"
     };
     
+    if (!fuelType) return "Not specified";
     return types[fuelType.toLowerCase()] || fuelType;
   },
   
@@ -129,6 +131,7 @@ export const carHelpers = {
       "continuously_variable": "Continuously Variable"
     };
     
+    if (!transmission) return "Not specified";
     return types[transmission.toLowerCase()] || transmission;
   }
 };

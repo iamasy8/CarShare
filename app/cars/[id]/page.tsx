@@ -16,8 +16,13 @@ import { useRouter } from "next/navigation"
 import { AlertDescription, Alert } from "@/components/ui/alert"
 import { DateRange } from "react-day-picker"
 import { parseCarFeatures } from "@/lib/utils"
+import React from "react"
 
 export default function CarDetailsPage({ params }: { params: { id: string } }) {
+  // Unwrap params using React.use()
+  const resolvedParams = React.use(params)
+  const carId = resolvedParams.id
+  
   const { user, isAuthenticated } = useAuth()
   const { toast } = useToast()
   const router = useRouter()
@@ -66,13 +71,13 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
 
       try {
         // Get car ID from params and convert to number
-        const carId = parseInt(params.id)
-        if (isNaN(carId)) {
+        const numericCarId = parseInt(carId)
+        if (isNaN(numericCarId)) {
           throw new Error("Invalid car ID")
         }
 
         // Always fetch from API
-        const carData = await carService.getCar(carId)
+        const carData = await carService.getCar(numericCarId)
         
         // Ensure car.images is always an array
         if (carData.images && !Array.isArray(carData.images)) {
@@ -113,7 +118,7 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
     }
 
     fetchCar()
-  }, [params.id])
+  }, [carId])
 
   // Handle booking submission
   const handleBooking = async () => {
@@ -123,7 +128,7 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
         description: "Veuillez vous connecter pour réserver ce véhicule.",
         variant: "destructive",
       })
-      router.push(`/login?redirect=/cars/${params.id}`)
+      router.push(`/login?redirect=/cars/${carId}`)
       return
     }
 
