@@ -20,6 +20,7 @@ import { parseCarFeatures } from "@/lib/utils"
 import React from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { BackButton } from "@/components/ui/back-button"
+import { bookingService } from "@/lib/api/bookings/bookingService"
 
 // Extended Car type to handle string or array for images and features
 interface ExtendedCar extends Omit<Car, 'images' | 'features'> {
@@ -45,6 +46,8 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [favoriteLoading, setFavoriteLoading] = useState(false)
+  const [checkingAvailability, setCheckingAvailability] = useState(false)
+  const [isAvailable, setIsAvailable] = useState<boolean | null>(null)
   const [dateRange, setDateRange] = useState<{
     from: Date | undefined;
     to: Date | undefined;
@@ -72,6 +75,47 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
       from: range?.from,
       to: range?.to
     });
+    
+    // Reset availability when dates change
+    setIsAvailable(null);
+    
+    // Check availability if both dates are selected
+    if (range?.from && range?.to) {
+      checkAvailability(range.from, range.to);
+    }
+  };
+  
+  // Check car availability for selected dates
+  const checkAvailability = async (startDate: Date, endDate: Date) => {
+    if (!car) return;
+    
+    setCheckingAvailability(true);
+    try {
+      const formattedStartDate = startDate.toISOString().split('T')[0];
+      const formattedEndDate = endDate.toISOString().split('T')[0];
+      
+      // Check for overlapping bookings on the backend
+      const result = await bookingService.checkAvailability(
+        parseInt(carId),
+        formattedStartDate,
+        formattedEndDate
+      );
+      
+      setIsAvailable(result.available);
+      
+      if (!result.available) {
+        toast({
+          title: "Dates non disponibles",
+          description: "Ce véhicule est déjà réservé pour les dates sélectionnées.",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      console.error("Error checking availability:", err);
+      setIsAvailable(null);
+    } finally {
+      setCheckingAvailability(false);
+    }
   };
 
   // Calculate total days between two dates
@@ -219,21 +263,81 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
       return
     }
 
+    // Don't proceed if we already know it's not available
+    if (isAvailable === false) {
+      toast({
+        title: "Dates non disponibles",
+        description: "Ce véhicule est déjà réservé pour les dates sélectionnées. Veuillez choisir d'autres dates.",
+        variant: "destructive",
+      })
+      return
+    }
+
     try {
-      // In a real implementation, this would call the API
+      // If availability hasn't been checked yet, check it now
+      if (isAvailable === null) {
+        setCheckingAvailability(true)
+        
+        const formattedStartDate = dateRange.from.toISOString().split('T')[0];
+        const formattedEndDate = dateRange.to.toISOString().split('T')[0];
+        
+        const availabilityResult = await bookingService.checkAvailability(
+          parseInt(carId),
+          formattedStartDate,
+          formattedEndDate
+        )
+        
+        setCheckingAvailability(false)
+        
+        if (!availabilityResult.available) {
+          setIsAvailable(false)
+          toast({
+            title: "Dates non disponibles",
+            description: "Ce véhicule est déjà réservé pour les dates sélectionnées. Veuillez choisir d'autres dates.",
+            variant: "destructive",
+          })
+          return
+        }
+        
+        setIsAvailable(true)
+      }
+      
+      // Create the booking using the booking service
+      const bookingData = {
+        carId: parseInt(carId),
+        startDate: dateRange.from.toISOString().split('T')[0], // Format as YYYY-MM-DD
+        endDate: dateRange.to.toISOString().split('T')[0], // Format as YYYY-MM-DD
+        message: "Réservation depuis l'application web"
+      }
+      
+      // Create the booking
+      await bookingService.createBooking(bookingData)
+      
       toast({
         title: "Demande de réservation envoyée",
         description: "Le propriétaire va examiner votre demande de réservation.",
       })
       
-      // Redirect to bookings page
-      router.push('/client/bookings')
+      // Redirect to reservations page instead of bookings
+      router.push('/reservations')
     } catch (err) {
+      console.error("Booking error:", err);
+      
+      // Check if it's a conflict error (409)
+      if ((err as any)?.status === 409) {
+        setIsAvailable(false)
+        toast({
+          title: "Dates non disponibles",
+          description: "Ce véhicule est déjà réservé pour les dates sélectionnées. Veuillez choisir d'autres dates.",
+          variant: "destructive",
+        })
+      } else {
       toast({
         title: "Erreur de réservation",
         description: handleApiError(err, "Impossible de créer la réservation."),
         variant: "destructive",
       })
+      }
     }
   }
 
@@ -465,10 +569,19 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
                 
                 <Button 
                   className="w-full bg-red-600 hover:bg-red-700" 
-                  disabled={!dateRange.from || !dateRange.to}
+                  disabled={!dateRange.from || !dateRange.to || checkingAvailability || isAvailable === false}
                   onClick={handleBooking}
                 >
-                  Réserver maintenant
+                  {checkingAvailability ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Vérification...
+                    </>
+                  ) : isAvailable === false ? (
+                    "Non disponible"
+                  ) : (
+                    "Réserver maintenant"
+                  )}
                 </Button>
                 
                 <p className="text-xs text-gray-500 text-center mt-4">

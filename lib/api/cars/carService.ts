@@ -1,4 +1,5 @@
 import { apiClient } from '../apiClient';
+import type { User } from '@/lib/auth-context';
 
 export interface Car {
   id: number;
@@ -19,6 +20,7 @@ export interface Car {
   availableFrom?: Date;
   availableTo?: Date;
   ownerId: number;
+  owner?: User;
   status: 'pending' | 'approved' | 'rejected';
   createdAt: Date;
   updatedAt: Date;

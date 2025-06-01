@@ -30,7 +30,7 @@ export function ClientSidebar() {
   const navItems = [
     { href: "/client/dashboard", label: "Tableau de bord", icon: Home },
     { href: "/search", label: "Rechercher", icon: Search },
-    { href: "/client/reservations", label: "Mes réservations", icon: Calendar },
+    { href: "/reservations", label: "Mes réservations", icon: Calendar },
     { href: "/client/favorites", label: "Favoris", icon: Heart },
     { 
       href: "/messages", 

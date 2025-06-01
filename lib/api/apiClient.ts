@@ -195,12 +195,22 @@ export default class ApiClient {
   }
   
   async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.client.get(url, config);
-    // Handle both formats: { data, success, message } or direct data
-    if (response.data && typeof response.data === 'object' && 'data' in response.data && 'success' in response.data) {
-      return response.data.data as T;
+    try {
+      const response = await this.client.get(url, config);
+      // Handle both formats: { data, success, message } or direct data
+      if (response.data && typeof response.data === 'object' && 'data' in response.data && 'success' in response.data) {
+        return response.data.data as T;
+      }
+      return response.data as T;
+    } catch (error) {
+      console.error(`Error fetching data from ${url}:`, error);
+      if (error instanceof AxiosError && error.response?.data) {
+        // Extract error message from response if available
+        const errorMessage = error.response.data.message || 'An error occurred while fetching data';
+        throw new ApiError(errorMessage, error.response.status, error.response.data);
+      }
+      throw error;
     }
-    return response.data as T;
   }
   
   async post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
@@ -232,12 +242,12 @@ export default class ApiClient {
       }
     } else {
       // Regular JSON request
-      const response = await this.client.post(url, data, config);
-      // Handle both formats: { data, success, message } or direct data
-      if (response.data && typeof response.data === 'object' && 'data' in response.data && 'success' in response.data) {
-        return response.data.data as T;
-      }
-      return response.data as T;
+    const response = await this.client.post(url, data, config);
+    // Handle both formats: { data, success, message } or direct data
+    if (response.data && typeof response.data === 'object' && 'data' in response.data && 'success' in response.data) {
+      return response.data.data as T;
+    }
+    return response.data as T;
     }
   }
   

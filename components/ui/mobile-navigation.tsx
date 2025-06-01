@@ -26,7 +26,7 @@ export function MobileNavigation() {
   const clientTabs: NavTab[] = [
     { icon: Home, label: "Accueil", href: "/client/dashboard" },
     { icon: Search, label: "Rechercher", href: "/search" },
-    { icon: Calendar, label: "Réservations", href: "/client/reservations" },
+    { icon: Calendar, label: "Réservations", href: "/reservations" },
     { icon: Heart, label: "Favoris", href: "/client/favorites" },
     { 
       icon: MessageCircle, 

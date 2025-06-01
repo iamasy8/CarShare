@@ -30,12 +30,12 @@ export default function RootLayout({
             <ThemeProvider>
               <RoleThemeProvider>
                 <ClientLayoutWrapper>
-                  <div className="flex flex-col min-h-screen">
-                    <Header />
-                    <main className="flex-1">{children}</main>
-                    <Footer />
-                    <MobileNavigation />
-                  </div>
+                <div className="flex flex-col min-h-screen">
+                  <Header />
+                  <main className="flex-1">{children}</main>
+                  <Footer />
+                  <MobileNavigation />
+                </div>
                 </ClientLayoutWrapper>
               </RoleThemeProvider>
             </ThemeProvider>

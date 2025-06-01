@@ -24,8 +24,8 @@ export interface Booking {
 
 export interface BookingCreateData {
   carId: number;
-  startDate: Date;
-  endDate: Date;
+  startDate: Date | string;
+  endDate: Date | string;
   message?: string;
 }
 
@@ -54,7 +54,24 @@ class BookingService {
    * Get bookings for the current user (client or owner)
    */
   async getBookings(filters?: BookingFilters): Promise<Booking[]> {
-    return apiClient.get<Booking[]>('/bookings', { params: filters });
+    try {
+      const response = await apiClient.get<Booking[]>('/bookings', { params: filters });
+      
+      // Ensure dates are properly converted to Date objects
+      if (Array.isArray(response)) {
+        return response.map(booking => ({
+          ...booking,
+          startDate: booking.startDate ? new Date(booking.startDate) : new Date(),
+          endDate: booking.endDate ? new Date(booking.endDate) : new Date(),
+          createdAt: booking.createdAt ? new Date(booking.createdAt) : new Date(),
+          updatedAt: booking.updatedAt ? new Date(booking.updatedAt) : new Date()
+        }));
+      }
+      return [];
+    } catch (error) {
+      console.error("Error fetching bookings:", error);
+      throw error;
+    }
   }
   
   /**
@@ -123,11 +140,14 @@ class BookingService {
   /**
    * Check car availability for given dates
    */
-  async checkAvailability(carId: number, startDate: Date, endDate: Date): Promise<{ available: boolean }> {
+  async checkAvailability(carId: number, startDate: Date | string, endDate: Date | string): Promise<{ available: boolean }> {
+    const formattedStartDate = startDate instanceof Date ? startDate.toISOString().split('T')[0] : startDate;
+    const formattedEndDate = endDate instanceof Date ? endDate.toISOString().split('T')[0] : endDate;
+    
     return apiClient.get<{ available: boolean }>(`/cars/${carId}/availability`, {
       params: {
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
+        startDate: formattedStartDate,
+        endDate: formattedEndDate,
       },
     });
   }

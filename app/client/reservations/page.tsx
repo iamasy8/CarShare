@@ -1,226 +1,273 @@
 "use client"
 
-import React from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Calendar, Clock, CheckCircle, XCircle } from "lucide-react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
+import { bookingService, type Booking } from "@/lib/api/bookings/bookingService"
 import { Button } from "@/components/ui/button"
-import Link from "next/link"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
+import { Calendar, Clock, MapPin, Car as CarIcon, AlertCircle, RefreshCw } from "lucide-react"
+import { Separator } from "@/components/ui/separator"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { RouteProtection } from "@/components/route-protection"
+import { format } from "date-fns"
+import { fr } from "date-fns/locale"
+import Link from "next/link"
 
-export default function ClientReservations() {
-  const { user } = useAuth()
-
-  // Mock reservations data
-  const upcomingReservations = [
-    {
-      id: 1,
-      carName: "Renault Clio",
-      ownerName: "Thomas Dubois",
-      startDate: "19 mai 2023",
-      endDate: "22 mai 2023",
-      price: "350€",
-      location: "Casablanca, Morocco",
-      status: "confirmé",
-      image: "/placeholder.svg?height=100&width=150"
+export default function ClientReservationsPage() {
+  const { user, isAuthenticated } = useAuth()
+  const router = useRouter()
+  const [bookings, setBookings] = useState<Booking[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+  
+  const fetchBookings = async () => {
+    if (!isAuthenticated) return
+    
+    setLoading(true)
+    setError("")
+    
+    try {
+      const bookingsData = await bookingService.getBookings()
+      
+      if (Array.isArray(bookingsData)) {
+        setBookings(bookingsData)
+      } else {
+        console.error("Invalid bookings data format:", bookingsData)
+        setError("Format de données incorrect. Veuillez réessayer.")
+      }
+    } catch (err: any) {
+      console.error("Error fetching bookings:", err)
+      setError(err?.message || "Impossible de charger vos réservations. Veuillez réessayer ou vous reconnecter.")
+    } finally {
+      setLoading(false)
     }
-  ]
-
-  const pastReservations = [
-    {
-      id: 101,
-      carName: "Peugeot 208",
-      ownerName: "Sophie Martin",
-      startDate: "10 avril 2023",
-      endDate: "15 avril 2023",
-      price: "320€",
-      location: "Casablanca, Morocco",
-      status: "terminé",
-      rating: 4,
-      image: "/placeholder.svg?height=100&width=150"
-    },
-    {
-      id: 102,
-      carName: "Citroën C3",
-      ownerName: "Jean Dupont",
-      startDate: "22 mars 2023",
-      endDate: "25 mars 2023",
-      price: "210€",
-      location: "Casablanca, Morocco",
-      status: "terminé",
-      rating: 5,
-      image: "/placeholder.svg?height=100&width=150"
-    },
-    {
-      id: 103,
-      carName: "Dacia Sandero",
-      ownerName: "Marie Leroy",
-      startDate: "5 février 2023",
-      endDate: "8 février 2023",
-      price: "180€",
-      location: "Casablanca, Morocco",
-      status: "terminé",
-      rating: 4,
-      image: "/placeholder.svg?height=100&width=150"
+  }
+  
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchBookings()
     }
-  ]
-
-  const cancelledReservations = [
-    {
-      id: 201,
-      carName: "Ford Fiesta",
-      ownerName: "Laurent Blanc",
-      startDate: "15 mars 2023",
-      endDate: "18 mars 2023",
-      price: "240€",
-      location: "Casablanca, Morocco",
-      status: "annulé",
-      cancelReason: "Changement de plans",
-      image: "/placeholder.svg?height=100&width=150"
+  }, [isAuthenticated])
+  
+  const getStatusBadge = (status: Booking['status']) => {
+    const statusMap: Record<Booking['status'], { label: string, variant: "default" | "secondary" | "destructive" | "outline" }> = {
+      pending: { label: "En attente", variant: "secondary" },
+      confirmed: { label: "Confirmée", variant: "default" },
+      active: { label: "En cours", variant: "default" },
+      completed: { label: "Terminée", variant: "outline" },
+      cancelled: { label: "Annulée", variant: "destructive" },
+      rejected: { label: "Rejetée", variant: "destructive" }
     }
-  ]
-
-  // Helper function to render a reservation card
-  const renderReservationCard = (reservation: any) => (
-    <Card key={reservation.id} className="mb-4">
-      <CardContent className="p-4">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="w-full sm:w-24 h-24 relative rounded-lg overflow-hidden bg-gray-200">
-            <img 
-              src={reservation.image} 
-              alt={reservation.carName}
-              className="object-cover w-full h-full"
-            />
-          </div>
-          <div className="flex-1">
-            <div className="flex justify-between items-start">
-              <h3 className="font-semibold text-lg">{reservation.carName}</h3>
-              <Badge 
-                className={`${
-                  reservation.status === "confirmé" ? "bg-green-500" : 
-                  reservation.status === "terminé" ? "bg-blue-500" : 
-                  "bg-red-500"
-                } text-white`}
-              >
-                {reservation.status}
-              </Badge>
-            </div>
-            <p className="text-sm text-gray-500">
-              De {reservation.ownerName}
-            </p>
-            <div className="mt-2 space-y-1">
-              <p className="text-sm flex items-center">
-                <Calendar className="mr-2 h-4 w-4 text-gray-500" />
-                Du {reservation.startDate} au {reservation.endDate}
-              </p>
-              <p className="text-sm flex items-center">
-                <Clock className="mr-2 h-4 w-4 text-gray-500" />
-                Prix total: {reservation.price}
-              </p>
-            </div>
-            <div className="mt-4 flex gap-2">
-              <Button asChild size="sm" className="bg-red-600 hover:bg-red-700">
-                <Link href={`/reservations/${reservation.id}`}>
-                  Voir les détails
-                </Link>
-              </Button>
-              {reservation.status === "confirmé" && (
-                <Button variant="outline" size="sm">
-                  Contacter le propriétaire
-                </Button>
-              )}
-              {reservation.status === "terminé" && !reservation.rating && (
-                <Button variant="outline" size="sm">
-                  Laisser un avis
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    
+    const { label, variant } = statusMap[status] || { label: status, variant: "outline" }
+    
+    return <Badge variant={variant}>{label}</Badge>
+  }
+  
+  const formatDate = (date: Date | string) => {
+    if (!date) return ""
+    try {
+      const dateObj = typeof date === "string" ? new Date(date) : date
+      return format(dateObj, "dd MMMM yyyy", { locale: fr })
+    } catch (e) {
+      console.error("Error formatting date:", e, date)
+      return String(date)
+    }
+  }
+  
+  const activeBookings = bookings.filter(booking => 
+    ['pending', 'confirmed', 'active'].includes(booking.status)
+  )
+  
+  const pastBookings = bookings.filter(booking => 
+    ['completed', 'cancelled', 'rejected'].includes(booking.status)
   )
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Mes réservations</h1>
-        <p className="text-gray-500 dark:text-gray-400">
-          Gérez vos réservations passées et à venir
-        </p>
-      </div>
-
-      <Tabs defaultValue="upcoming" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="upcoming" className="relative">
-            À venir
-            {upcomingReservations.length > 0 && (
-              <Badge className="ml-2 bg-red-500 text-white">
-                {upcomingReservations.length}
-              </Badge>
+    <RouteProtection requiredRoles={["client", "admin", "superadmin"]}>
+      <div className="container py-10">
+        <h1 className="text-3xl font-bold mb-2">Mes réservations</h1>
+        <p className="text-gray-500 dark:text-gray-400 mb-8">Gérez vos réservations de véhicules</p>
+        
+        {error && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="h-4 w-4 mr-2" />
+            <AlertDescription className="flex-1">{error}</AlertDescription>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={fetchBookings} 
+              className="ml-2"
+              disabled={loading}
+            >
+              <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
+              Réessayer
+            </Button>
+          </Alert>
+        )}
+        
+        {loading ? (
+          <div className="flex justify-center py-10">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
+          </div>
+        ) : (
+          <>
+            {!error && (
+              <Tabs defaultValue="active" className="w-full">
+                <TabsList className="mb-6">
+                  <TabsTrigger value="active">
+                    Réservations actives
+                    {activeBookings.length > 0 && (
+                      <span className="ml-2 bg-red-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                        {activeBookings.length}
+                      </span>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="past">
+                    Historique
+                    {pastBookings.length > 0 && (
+                      <span className="ml-2 bg-gray-400 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                        {pastBookings.length}
+                      </span>
+                    )}
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="active" className="space-y-6">
+                  {activeBookings.length === 0 ? (
+                    <div className="text-center py-10">
+                      <p className="text-gray-500 mb-4">Vous n'avez pas de réservations actives.</p>
+                      <Button onClick={() => router.push("/search")}>
+                        Rechercher un véhicule
+                      </Button>
+                    </div>
+                  ) : (
+                    activeBookings.map(booking => (
+                      <BookingCard key={booking.id} booking={booking} />
+                    ))
+                  )}
+                </TabsContent>
+                
+                <TabsContent value="past" className="space-y-6">
+                  {pastBookings.length === 0 ? (
+                    <div className="text-center py-10">
+                      <p className="text-gray-500">Vous n'avez pas d'historique de réservations.</p>
+                    </div>
+                  ) : (
+                    pastBookings.map(booking => (
+                      <BookingCard key={booking.id} booking={booking} />
+                    ))
+                  )}
+                </TabsContent>
+              </Tabs>
             )}
-          </TabsTrigger>
-          <TabsTrigger value="past">Passées</TabsTrigger>
-          <TabsTrigger value="cancelled">Annulées</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="upcoming" className="space-y-4">
-          {upcomingReservations.length > 0 ? (
-            upcomingReservations.map(reservation => renderReservationCard(reservation))
-          ) : (
-            <Card>
-              <CardContent className="p-6 text-center">
-                <div className="flex flex-col items-center justify-center py-6">
-                  <Calendar className="h-12 w-12 text-gray-300 mb-4" />
-                  <p className="text-gray-500 mb-4">
-                    Vous n'avez pas de réservations à venir.
-                  </p>
-                  <Button asChild className="bg-red-600 hover:bg-red-700">
-                    <Link href="/search">
-                      Rechercher une voiture
-                    </Link>
-                  </Button>
+          </>
+        )}
+      </div>
+    </RouteProtection>
+  )
+}
+
+function BookingCard({ booking }: { booking: Booking }) {
+  const router = useRouter()
+  
+  const formatDate = (date: Date | string) => {
+    if (!date) return ""
+    try {
+      const dateObj = typeof date === "string" ? new Date(date) : date
+      return format(dateObj, "dd MMMM yyyy", { locale: fr })
+    } catch (e) {
+      console.error("Error formatting date:", e, date)
+      return String(date)
+    }
+  }
+  
+  const getStatusBadge = (status: Booking['status']) => {
+    const statusMap: Record<Booking['status'], { label: string, variant: "default" | "secondary" | "destructive" | "outline" }> = {
+      pending: { label: "En attente", variant: "secondary" },
+      confirmed: { label: "Confirmée", variant: "default" },
+      active: { label: "En cours", variant: "default" },
+      completed: { label: "Terminée", variant: "outline" },
+      cancelled: { label: "Annulée", variant: "destructive" },
+      rejected: { label: "Rejetée", variant: "destructive" }
+    }
+    
+    const { label, variant } = statusMap[status] || { label: status, variant: "outline" }
+    
+    return <Badge variant={variant}>{label}</Badge>
+  }
+  
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex justify-between items-start">
+          <div>
+            <CardTitle className="text-xl">{booking.car?.title || "Véhicule"}</CardTitle>
+            <CardDescription className="flex items-center mt-1">
+              <Calendar className="h-4 w-4 mr-1" />
+              {formatDate(booking.startDate)} - {formatDate(booking.endDate)}
+            </CardDescription>
+          </div>
+          {getStatusBadge(booking.status)}
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="aspect-[4/3] bg-gray-100 rounded-md overflow-hidden">
+            <img 
+              src={(booking.car?.images && booking.car.images[0]) || "/placeholder.svg"} 
+              alt={booking.car?.title || "Car image"} 
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div className="md:col-span-2 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <h4 className="text-sm font-medium text-gray-500">Prix total</h4>
+                <p className="text-lg font-bold">{booking.totalPrice}€</p>
+              </div>
+              
+              {booking.car?.owner && (
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500">Propriétaire</h4>
+                  <p>{booking.car.owner.name}</p>
                 </div>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
+              )}
+            </div>
+            
+            <Separator />
+            
+            {booking.message && (
+              <div>
+                <h4 className="text-sm font-medium text-gray-500">Message</h4>
+                <p className="text-sm">{booking.message}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </CardContent>
+      <CardFooter className="flex justify-end space-x-2">
+        <Button 
+          variant="outline" 
+          onClick={() => router.push(`/client/reservations/${booking.id}`)}
+        >
+          Détails
+        </Button>
         
-        <TabsContent value="past" className="space-y-4">
-          {pastReservations.length > 0 ? (
-            pastReservations.map(reservation => renderReservationCard(reservation))
-          ) : (
-            <Card>
-              <CardContent className="p-6 text-center">
-                <div className="flex flex-col items-center justify-center py-6">
-                  <CheckCircle className="h-12 w-12 text-gray-300 mb-4" />
-                  <p className="text-gray-500 mb-4">
-                    Vous n'avez pas de réservations passées.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="cancelled" className="space-y-4">
-          {cancelledReservations.length > 0 ? (
-            cancelledReservations.map(reservation => renderReservationCard(reservation))
-          ) : (
-            <Card>
-              <CardContent className="p-6 text-center">
-                <div className="flex flex-col items-center justify-center py-6">
-                  <XCircle className="h-12 w-12 text-gray-300 mb-4" />
-                  <p className="text-gray-500 mb-4">
-                    Vous n'avez pas de réservations annulées.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-      </Tabs>
-    </div>
+        {booking.status === 'pending' && (
+          <Button 
+            variant="destructive"
+            onClick={() => {
+              // Handle cancellation
+            }}
+          >
+            Annuler
+          </Button>
+        )}
+      </CardFooter>
+    </Card>
   )
 } 
