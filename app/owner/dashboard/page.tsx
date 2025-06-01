@@ -125,11 +125,37 @@ export default function OwnerDashboard() {
           
           try {
             // Fetch listings
-            const listings = await carService.getOwnerCars();
+            let listings;
+            try {
+              listings = await carService.getOwnerCars();
+            } catch (err) {
+              console.error("Error fetching owner cars:", err);
+              // Use empty array if listings can't be fetched
+              listings = [];
+            }
             const activeListings = listings.filter(l => l.status === "approved").length;
             
-            // Fetch bookings
-            const bookings = await bookingService.getBookings();
+            // Fetch bookings with retry
+            let bookings = [];
+            let retryCount = 0;
+            const maxRetries = 3;
+            
+            while (retryCount < maxRetries) {
+              try {
+                bookings = await bookingService.getBookings();
+                break; // Exit loop on success
+              } catch (err) {
+                console.error(`Error fetching bookings (attempt ${retryCount + 1}/${maxRetries}):`, err);
+                retryCount++;
+                if (retryCount >= maxRetries) {
+                  console.error("Max retry attempts reached for bookings");
+                } else {
+                  // Wait before retrying (exponential backoff)
+                  await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+                }
+              }
+            }
+            
             const pendingBookings = bookings.filter(b => b.status === "pending").length;
             
             // Calculate earnings
@@ -141,11 +167,21 @@ export default function OwnerDashboard() {
               .slice(0, 3)
               .map(booking => convertApiBookingToMockBooking(booking));
             
-            // Get unread message count
-            const unreadCount = await getUnreadMessagesCount();
+            // Get unread message count (with error handling)
+            let unreadCount = 0;
+            try {
+              unreadCount = await getUnreadMessagesCount();
+            } catch (err) {
+              console.error("Error fetching unread message count:", err);
+            }
             
-            // Get notifications with proper read/unread status
-            const notifications = await fetch('/api/notifications').then(res => res.json());
+            // Get notifications with proper read/unread status (with error handling)
+            let notifications = [];
+            try {
+              notifications = await fetch('/api/notifications').then(res => res.json());
+            } catch (err) {
+              console.error("Error fetching notifications:", err);
+            }
             
             setDashboardData({
               activeListings,
@@ -157,7 +193,7 @@ export default function OwnerDashboard() {
             });
           } catch (err) {
             console.error("Error fetching dashboard data:", err);
-            setError(handleError(err, "Failed to load dashboard data"));
+            setError(handleError(err, "Failed to load dashboard data. Please try refreshing the page or logging in again."));
           } finally {
             setIsLoading(false);
           }
@@ -270,6 +306,74 @@ export default function OwnerDashboard() {
     router.push("/owner/listings/new")
   }
   
+  // Add a retry function for the dashboard
+  const retryFetchDashboard = () => {
+    setIsLoading(true);
+    setError("");
+    // Wait a moment before retrying to avoid rapid retries
+    setTimeout(() => {
+      const fetchDashboardData = async () => {
+        // Similar implementation as the useEffect hook
+        if (status === "authenticated" && isOwner) {
+          try {
+            // Fetch listings
+            let listings;
+            try {
+              listings = await carService.getOwnerCars();
+            } catch (err) {
+              console.error("Error fetching owner cars:", err);
+              listings = [];
+            }
+            const activeListings = listings.filter(l => l.status === "approved").length;
+            
+            // Fetch bookings with retry
+            let bookings = [];
+            let retryCount = 0;
+            const maxRetries = 3;
+            
+            while (retryCount < maxRetries) {
+              try {
+                bookings = await bookingService.getBookings();
+                break;
+              } catch (err) {
+                console.error(`Error fetching bookings (attempt ${retryCount + 1}/${maxRetries}):`, err);
+                retryCount++;
+                if (retryCount >= maxRetries) {
+                  console.error("Max retry attempts reached for bookings");
+                } else {
+                  await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+                }
+              }
+            }
+            
+            const pendingBookings = bookings.filter(b => b.status === "pending").length;
+            const earnings = ownerDashboardHelpers.calculateEarningsSummary(bookings);
+            const recentBookings: MockBooking[] = bookings
+              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+              .slice(0, 3)
+              .map(booking => convertApiBookingToMockBooking(booking));
+            
+            setDashboardData({
+              activeListings,
+              pendingBookings,
+              totalEarnings: earnings.monthly,
+              pendingEarnings: earnings.pending,
+              recentBookings,
+              notifications: [] // Simplified for retry
+            });
+          } catch (err) {
+            console.error("Error retrying dashboard data fetch:", err);
+            setError(handleError(err, "Failed to load dashboard data. Please try refreshing the page or logging in again."));
+          } finally {
+            setIsLoading(false);
+          }
+        }
+      };
+      
+      fetchDashboardData();
+    }, 500);
+  };
+  
   // Redirect if not owner
   if (status === "unauthenticated") {
     router.push("/login");
@@ -279,6 +383,34 @@ export default function OwnerDashboard() {
   if (status === "authenticated" && !isOwner) {
     router.push("/dashboard");
     return null;
+  }
+  
+  // Render error state with retry button
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 text-center">
+          <div className="text-red-500 mb-4 text-6xl">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">Erreur de chargement du tableau de bord</h2>
+          <p className="text-gray-600 dark:text-gray-300 mb-6">{error}</p>
+          <div className="flex flex-col space-y-2">
+            <Button onClick={retryFetchDashboard} className="w-full">
+              Réessayer
+            </Button>
+            <Button variant="outline" onClick={() => router.push("/owner/cars")} className="w-full">
+              Gérer mes véhicules
+            </Button>
+            <Button variant="outline" onClick={() => logout()} className="w-full">
+              Se déconnecter
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
   }
   
   return (
@@ -309,10 +441,6 @@ export default function OwnerDashboard() {
         {isLoading ? (
           <div className="flex justify-center items-center h-64">
             <p className="text-gray-500">Loading dashboard data...</p>
-          </div>
-        ) : error ? (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
-            {error}
           </div>
         ) : (
           <Tabs defaultValue="overview" className="w-full">

@@ -197,6 +197,14 @@ export default class ApiClient {
   async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
     try {
       const response = await this.client.get(url, config);
+      
+      // Check if response content-type is HTML (usually indicates a routing/auth issue)
+      const contentType = response.headers['content-type'];
+      if (contentType && contentType.includes('text/html')) {
+        console.error(`API returned HTML instead of JSON for ${url}. This likely indicates a backend routing or authentication issue.`);
+        throw new ApiError('Server returned HTML instead of JSON. Please check your authentication or API configuration.', 500);
+      }
+      
       // Handle both formats: { data, success, message } or direct data
       if (response.data && typeof response.data === 'object' && 'data' in response.data && 'success' in response.data) {
         return response.data.data as T;
@@ -204,11 +212,31 @@ export default class ApiClient {
       return response.data as T;
     } catch (error) {
       console.error(`Error fetching data from ${url}:`, error);
-      if (error instanceof AxiosError && error.response?.data) {
-        // Extract error message from response if available
-        const errorMessage = error.response.data.message || 'An error occurred while fetching data';
-        throw new ApiError(errorMessage, error.response.status, error.response.data);
+      
+      // Special handling for HTML responses from server
+      if (error instanceof AxiosError) {
+        const contentType = error.response?.headers?.['content-type'];
+        
+        // If response contains HTML
+        if (contentType && contentType.includes('text/html')) {
+          console.error('Server returned HTML instead of JSON. This usually indicates a session timeout or server error.');
+          
+          // Clear token and redirect to login since this is likely an auth issue
+          this.clearToken();
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login?expired=1';
+          }
+          
+          throw new ApiError('Session expired or invalid. Please log in again.', 401);
+        }
+        
+        if (error.response?.data) {
+          // Extract error message from response if available
+          const errorMessage = error.response.data.message || 'An error occurred while fetching data';
+          throw new ApiError(errorMessage, error.response.status, error.response.data);
+        }
       }
+      
       throw error;
     }
   }
@@ -231,6 +259,14 @@ export default class ApiClient {
       
       try {
         const response = await this.client.post(url, data, formConfig);
+        
+        // Check if response content-type is HTML
+        const contentType = response.headers['content-type'];
+        if (contentType && contentType.includes('text/html')) {
+          console.error(`API returned HTML instead of JSON for ${url}. This likely indicates a backend routing or authentication issue.`);
+          throw new ApiError('Server returned HTML instead of JSON. Please check your authentication or API configuration.', 500);
+        }
+        
         // Handle both formats: { data, success, message } or direct data
         if (response.data && typeof response.data === 'object' && 'data' in response.data && 'success' in response.data) {
           return response.data.data as T;
@@ -238,44 +274,215 @@ export default class ApiClient {
         return response.data as T;
       } catch (error) {
         console.error("API Error:", error);
+        
+        // Special handling for HTML responses from server
+        if (error instanceof AxiosError) {
+          const contentType = error.response?.headers?.['content-type'];
+          
+          // If response contains HTML
+          if (contentType && contentType.includes('text/html')) {
+            console.error('Server returned HTML instead of JSON. This usually indicates a session timeout or server error.');
+            
+            // Clear token and redirect to login since this is likely an auth issue
+            this.clearToken();
+            if (typeof window !== 'undefined') {
+              window.location.href = '/login?expired=1';
+            }
+            
+            throw new ApiError('Session expired or invalid. Please log in again.', 401);
+          }
+        }
+        
         throw error;
       }
     } else {
       // Regular JSON request
-    const response = await this.client.post(url, data, config);
-    // Handle both formats: { data, success, message } or direct data
-    if (response.data && typeof response.data === 'object' && 'data' in response.data && 'success' in response.data) {
-      return response.data.data as T;
-    }
-    return response.data as T;
+      try {
+        const response = await this.client.post(url, data, config);
+        
+        // Check if response content-type is HTML
+        const contentType = response.headers['content-type'];
+        if (contentType && contentType.includes('text/html')) {
+          console.error(`API returned HTML instead of JSON for ${url}. This likely indicates a backend routing or authentication issue.`);
+          throw new ApiError('Server returned HTML instead of JSON. Please check your authentication or API configuration.', 500);
+        }
+        
+        // Handle both formats: { data, success, message } or direct data
+        if (response.data && typeof response.data === 'object' && 'data' in response.data && 'success' in response.data) {
+          return response.data.data as T;
+        }
+        return response.data as T;
+      } catch (error) {
+        console.error(`Error posting data to ${url}:`, error);
+        
+        // Special handling for HTML responses from server
+        if (error instanceof AxiosError) {
+          const contentType = error.response?.headers?.['content-type'];
+          
+          // If response contains HTML
+          if (contentType && contentType.includes('text/html')) {
+            console.error('Server returned HTML instead of JSON. This usually indicates a session timeout or server error.');
+            
+            // Clear token and redirect to login since this is likely an auth issue
+            this.clearToken();
+            if (typeof window !== 'undefined') {
+              window.location.href = '/login?expired=1';
+            }
+            
+            throw new ApiError('Session expired or invalid. Please log in again.', 401);
+          }
+          
+          if (error.response?.data) {
+            // Extract error message from response if available
+            const errorMessage = error.response.data.message || 'An error occurred while posting data';
+            throw new ApiError(errorMessage, error.response.status, error.response.data);
+          }
+        }
+        
+        throw error;
+      }
     }
   }
   
   async put<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.client.put(url, data, config);
-    // Handle both formats: { data, success, message } or direct data
-    if (response.data && typeof response.data === 'object' && 'data' in response.data && 'success' in response.data) {
-      return response.data.data as T;
+    try {
+      const response = await this.client.put(url, data, config);
+      
+      // Check if response content-type is HTML
+      const contentType = response.headers['content-type'];
+      if (contentType && contentType.includes('text/html')) {
+        console.error(`API returned HTML instead of JSON for ${url}. This likely indicates a backend routing or authentication issue.`);
+        throw new ApiError('Server returned HTML instead of JSON. Please check your authentication or API configuration.', 500);
+      }
+      
+      // Handle both formats: { data, success, message } or direct data
+      if (response.data && typeof response.data === 'object' && 'data' in response.data && 'success' in response.data) {
+        return response.data.data as T;
+      }
+      return response.data as T;
+    } catch (error) {
+      console.error(`Error putting data to ${url}:`, error);
+      
+      // Special handling for HTML responses from server
+      if (error instanceof AxiosError) {
+        const contentType = error.response?.headers?.['content-type'];
+        
+        // If response contains HTML
+        if (contentType && contentType.includes('text/html')) {
+          console.error('Server returned HTML instead of JSON. This usually indicates a session timeout or server error.');
+          
+          // Clear token and redirect to login since this is likely an auth issue
+          this.clearToken();
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login?expired=1';
+          }
+          
+          throw new ApiError('Session expired or invalid. Please log in again.', 401);
+        }
+        
+        if (error.response?.data) {
+          // Extract error message from response if available
+          const errorMessage = error.response.data.message || 'An error occurred while updating data';
+          throw new ApiError(errorMessage, error.response.status, error.response.data);
+        }
+      }
+      
+      throw error;
     }
-    return response.data as T;
   }
   
   async delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.client.delete(url, config);
-    // Handle both formats: { data, success, message } or direct data
-    if (response.data && typeof response.data === 'object' && 'data' in response.data && 'success' in response.data) {
-      return response.data.data as T;
+    try {
+      const response = await this.client.delete(url, config);
+      
+      // Check if response content-type is HTML
+      const contentType = response.headers['content-type'];
+      if (contentType && contentType.includes('text/html')) {
+        console.error(`API returned HTML instead of JSON for ${url}. This likely indicates a backend routing or authentication issue.`);
+        throw new ApiError('Server returned HTML instead of JSON. Please check your authentication or API configuration.', 500);
+      }
+      
+      // Handle both formats: { data, success, message } or direct data
+      if (response.data && typeof response.data === 'object' && 'data' in response.data && 'success' in response.data) {
+        return response.data.data as T;
+      }
+      return response.data as T;
+    } catch (error) {
+      console.error(`Error deleting data from ${url}:`, error);
+      
+      // Special handling for HTML responses from server
+      if (error instanceof AxiosError) {
+        const contentType = error.response?.headers?.['content-type'];
+        
+        // If response contains HTML
+        if (contentType && contentType.includes('text/html')) {
+          console.error('Server returned HTML instead of JSON. This usually indicates a session timeout or server error.');
+          
+          // Clear token and redirect to login since this is likely an auth issue
+          this.clearToken();
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login?expired=1';
+          }
+          
+          throw new ApiError('Session expired or invalid. Please log in again.', 401);
+        }
+        
+        if (error.response?.data) {
+          // Extract error message from response if available
+          const errorMessage = error.response.data.message || 'An error occurred while deleting data';
+          throw new ApiError(errorMessage, error.response.status, error.response.data);
+        }
+      }
+      
+      throw error;
     }
-    return response.data as T;
   }
   
   async patch<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.client.patch(url, data, config);
-    // Handle both formats: { data, success, message } or direct data
-    if (response.data && typeof response.data === 'object' && 'data' in response.data && 'success' in response.data) {
-      return response.data.data as T;
+    try {
+      const response = await this.client.patch(url, data, config);
+      
+      // Check if response content-type is HTML
+      const contentType = response.headers['content-type'];
+      if (contentType && contentType.includes('text/html')) {
+        console.error(`API returned HTML instead of JSON for ${url}. This likely indicates a backend routing or authentication issue.`);
+        throw new ApiError('Server returned HTML instead of JSON. Please check your authentication or API configuration.', 500);
+      }
+      
+      // Handle both formats: { data, success, message } or direct data
+      if (response.data && typeof response.data === 'object' && 'data' in response.data && 'success' in response.data) {
+        return response.data.data as T;
+      }
+      return response.data as T;
+    } catch (error) {
+      console.error(`Error patching data at ${url}:`, error);
+      
+      // Special handling for HTML responses from server
+      if (error instanceof AxiosError) {
+        const contentType = error.response?.headers?.['content-type'];
+        
+        // If response contains HTML
+        if (contentType && contentType.includes('text/html')) {
+          console.error('Server returned HTML instead of JSON. This usually indicates a session timeout or server error.');
+          
+          // Clear token and redirect to login since this is likely an auth issue
+          this.clearToken();
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login?expired=1';
+          }
+          
+          throw new ApiError('Session expired or invalid. Please log in again.', 401);
+        }
+        
+        if (error.response?.data) {
+          // Extract error message from response if available
+          const errorMessage = error.response.data.message || 'An error occurred while patching data';
+          throw new ApiError(errorMessage, error.response.status, error.response.data);
+        }
+      }
+      
+      throw error;
     }
-    return response.data as T;
   }
   
   private async refreshToken(): Promise<{token: string} | null> {

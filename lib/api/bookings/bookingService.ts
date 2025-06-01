@@ -55,7 +55,16 @@ class BookingService {
    */
   async getBookings(filters?: BookingFilters): Promise<Booking[]> {
     try {
-      const response = await apiClient.get<Booking[]>('/bookings', { params: filters });
+      // Add a timeout to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      const response = await apiClient.get<Booking[]>('/bookings', { 
+        params: filters,
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
       
       // Ensure dates are properly converted to Date objects
       if (Array.isArray(response)) {
@@ -70,6 +79,20 @@ class BookingService {
       return [];
     } catch (error) {
       console.error("Error fetching bookings:", error);
+      
+      // Check if it's a JSON parsing error (common when receiving HTML instead of JSON)
+      if (error instanceof Error && error.message.includes('JSON')) {
+        console.error("JSON parsing error - likely received HTML instead of JSON. Session may have expired.");
+        // Force a redirect to login page
+        if (typeof window !== 'undefined') {
+          // Clear any stored auth tokens
+          localStorage.removeItem('auth_token');
+          // Redirect with a query param indicating session expiry
+          window.location.href = '/login?expired=1';
+        }
+      }
+      
+      // Rethrow for upstream handling
       throw error;
     }
   }
