@@ -19,6 +19,7 @@ import { DateRange } from "react-day-picker"
 import { parseCarFeatures } from "@/lib/utils"
 import React from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { BackButton } from "@/components/ui/back-button"
 
 // Extended Car type to handle string or array for images and features
 interface ExtendedCar extends Omit<Car, 'images' | 'features'> {
@@ -251,10 +252,7 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
     return (
       <div className="min-h-screen bg-gray-50 p-4">
         <div className="container mx-auto max-w-4xl">
-          <Link href="/search" className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-700 mb-6">
-            <ChevronLeft className="mr-1 h-4 w-4" />
-            Retour aux résultats
-          </Link>
+          <BackButton className="mb-6" label="Retour aux résultats" />
           
           <Alert variant="destructive" className="mb-6">
             <AlertTriangle className="h-4 w-4" />
@@ -275,10 +273,7 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
     <div className="min-h-screen bg-gray-50">
       <div className="container px-4 md:px-6 py-8 mx-auto max-w-6xl">
         <div className="mb-6">
-          <Link href="/search" className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-700">
-            <ChevronLeft className="mr-1 h-4 w-4" />
-            Retour aux résultats
-          </Link>
+          <BackButton className="text-sm font-medium text-gray-500 hover:text-gray-700" label="Retour aux résultats" />
         </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

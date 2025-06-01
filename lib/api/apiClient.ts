@@ -66,7 +66,8 @@ export default class ApiClient {
         }
         
         // Map frontend field names to backend field names in request data
-        if (config.data && typeof config.data === 'object') {
+        // Skip for FormData objects
+        if (config.data && typeof config.data === 'object' && !(config.data instanceof FormData)) {
           config.data = this.mapFieldsToBackend(config.data);
         }
         
@@ -136,6 +137,14 @@ export default class ApiClient {
         const status = error.response?.status || 500;
         const data = error.response?.data;
         
+        // For validation errors (422), include the validation errors in the message
+        if (status === 422 && data && (data as any).errors) {
+          const validationErrors = (data as any).errors;
+          const errorMessages = Object.values(validationErrors).flat() as string[];
+          const formattedMessage = errorMessages.join(', ');
+          return Promise.reject(new ApiError(formattedMessage, status, data));
+        }
+        
         return Promise.reject(new ApiError(message, status, data));
       }
     );
@@ -195,12 +204,41 @@ export default class ApiClient {
   }
   
   async post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.client.post(url, data, config);
-    // Handle both formats: { data, success, message } or direct data
-    if (response.data && typeof response.data === 'object' && 'data' in response.data && 'success' in response.data) {
-      return response.data.data as T;
+    // Special handling for FormData
+    if (data instanceof FormData) {
+      console.log("Sending FormData to:", url);
+      console.log("FormData contents:", Array.from(data.entries()));
+      
+      // Make sure we're using the right content type
+      const formConfig = {
+        ...config,
+        headers: {
+          ...(config?.headers || {}),
+          'Content-Type': 'multipart/form-data',
+          'Accept': 'application/json',
+        }
+      };
+      
+      try {
+        const response = await this.client.post(url, data, formConfig);
+        // Handle both formats: { data, success, message } or direct data
+        if (response.data && typeof response.data === 'object' && 'data' in response.data && 'success' in response.data) {
+          return response.data.data as T;
+        }
+        return response.data as T;
+      } catch (error) {
+        console.error("API Error:", error);
+        throw error;
+      }
+    } else {
+      // Regular JSON request
+      const response = await this.client.post(url, data, config);
+      // Handle both formats: { data, success, message } or direct data
+      if (response.data && typeof response.data === 'object' && 'data' in response.data && 'success' in response.data) {
+        return response.data.data as T;
+      }
+      return response.data as T;
     }
-    return response.data as T;
   }
   
   async put<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {

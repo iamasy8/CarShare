@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { bookingService, messageService, Booking as ApiBooking } from "@/lib/api"
 import { useRealApi } from "@/lib/utils"
 import React from "react"
+import { BackButton } from "@/components/ui/back-button"
 
 // Define a local booking type that includes UI-specific fields
 interface BookingDetails {
@@ -265,14 +266,10 @@ export default function BookingDetails({ params }: { params: { id: string } }) {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="container mx-auto px-4">
-        <Button 
-          variant="ghost" 
+        <BackButton 
           className="mb-6" 
-          onClick={() => router.push("/owner/bookings")}
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Bookings
-        </Button>
+          label="Back to Bookings"
+        />
         
         <div className="flex items-center mb-8">
           <Calendar className="h-6 w-6 text-red-600 mr-2" />

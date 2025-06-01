@@ -59,9 +59,13 @@ class CarService {
    * Create a new car (for owners)
    */
   async createCar(formData: FormData): Promise<Car> {
+    // Log the form data for debugging
+    console.log("FormData being sent:", Array.from(formData.entries()));
+    
     return apiClient.post<Car>('/cars', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
+        'Accept': 'application/json',
       },
     });
   }

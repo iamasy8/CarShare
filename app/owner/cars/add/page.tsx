@@ -117,19 +117,42 @@ export default function AddCarPage() {
     
     try {
       // Validation
-      if (!formData.make || !formData.model || !formData.pricePerDay) {
-        throw new Error("Veuillez remplir tous les champs obligatoires")
+      if (!formData.make) {
+        throw new Error("Veuillez sélectionner une marque de véhicule")
+      }
+      
+      if (!formData.model) {
+        throw new Error("Veuillez entrer le modèle du véhicule")
+      }
+      
+      if (!formData.pricePerDay) {
+        throw new Error("Veuillez entrer un prix par jour")
+      }
+      
+      if (!formData.location) {
+        throw new Error("Veuillez entrer la localisation du véhicule")
       }
       
       if (images.length === 0) {
         throw new Error("Veuillez télécharger au moins une image de votre voiture")
       }
       
+      if (images.length > 10) {
+        throw new Error("Vous ne pouvez pas télécharger plus de 10 images")
+      }
+      
+      // Check image sizes
+      for (const image of images) {
+        if (image.size > 5 * 1024 * 1024) { // 5MB
+          throw new Error(`L'image ${image.name} dépasse la taille maximale de 5MB`)
+        }
+      }
+      
       if (useRealApi()) {
         // Prepare form data for API
         const formDataToSend = new FormData();
         
-        // Add car details
+        // Add car details - match backend field names exactly as expected by Laravel
         formDataToSend.append('make', formData.make);
         formDataToSend.append('model', formData.model);
         formDataToSend.append('year', formData.year.toString());
@@ -137,56 +160,88 @@ export default function AddCarPage() {
         formDataToSend.append('doors', formData.doors.toString());
         formDataToSend.append('seats', formData.seats.toString());
         formDataToSend.append('transmission', formData.transmission);
-        formDataToSend.append('fuel_type', formData.fuelType);
+        formDataToSend.append('fuel', formData.fuelType);
         formDataToSend.append('price_per_day', formData.pricePerDay.toString());
         formDataToSend.append('location', formData.location);
-        formDataToSend.append('description', formData.description);
+        formDataToSend.append('description', formData.description || '');
         
-        // Add features
-        Object.entries(formData.features).forEach(([key, value]) => {
-          formDataToSend.append(`features[${key}]`, value.toString());
-        });
+        // Convert features to array of enabled features
+        const featuresArray = Object.entries(formData.features)
+          .filter(([_, value]) => value === true)
+          .map(([key]) => key);
         
-        // Add images
+        // Laravel's validation expects this format
+        formDataToSend.append('features', JSON.stringify(featuresArray));
+        
+        // Add images - Laravel expects this format
         images.forEach((image, index) => {
-          formDataToSend.append(`images[${index}]`, image);
+          formDataToSend.append(`images[]`, image);
         });
         
         // Add availability
-        formDataToSend.append('available_immediately', formData.availableImmediately.toString());
+        formDataToSend.append('is_available', formData.availableImmediately.toString());
         
-        // Send to API
-        await carService.createCar(formDataToSend);
+        console.log("Submitting form data:", Object.fromEntries(formDataToSend.entries()));
+        
+        try {
+          // Send to API
+          await carService.createCar(formDataToSend);
+          
+          // Show success message
+          setSuccess(true);
+          
+          // Redirect after success message
+          setTimeout(() => {
+            router.push("/owner/cars");
+          }, 2000);
+        } catch (apiError: any) {
+          console.error("API Error:", apiError);
+          
+          // Improved error handling
+          if (apiError.data && apiError.data.errors) {
+            // Format validation errors
+            const errorMessages = Object.values(apiError.data.errors).flat();
+            throw new Error(errorMessages.join('\n'));
+          } else if (apiError.data && apiError.data.message) {
+            throw new Error(apiError.data.message);
+          } else if (apiError.message) {
+            throw new Error(apiError.message);
+          } else {
+            throw new Error("Échec de l'ajout du véhicule. Veuillez réessayer.");
+          }
+        }
       } else {
         // For development - simulate image upload
         const uploadPromise = new Promise<void>((resolve) => {
-          let progress = 0
+          let progress = 0;
           const interval = setInterval(() => {
-            progress += 10
-            setUploadProgress(progress)
+            progress += 10;
+            setUploadProgress(progress);
             if (progress >= 100) {
-              clearInterval(interval)
-              resolve()
+              clearInterval(interval);
+              resolve();
             }
-          }, 300)
-        })
+          }, 300);
+        });
         
-        await uploadPromise
+        await uploadPromise;
+        
+        // Simulate success
+        setSuccess(true);
+        
+        // Redirect after success message
+        setTimeout(() => {
+          router.push("/owner/cars");
+        }, 2000);
       }
-      
-      // Show success message
-      setSuccess(true)
-      
-      // Redirect after success message
-      setTimeout(() => {
-        router.push("/owner/cars")
-      }, 2000)
-      
     } catch (err: any) {
-      console.error("Error creating car:", err)
-      setError(err.message || "Échec de l'ajout du véhicule")
+      console.error("Error creating car:", err);
+      setError(err.message || "Échec de l'ajout du véhicule. Veuillez réessayer.");
+      
+      // Scroll to top to show error
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
   
@@ -215,15 +270,15 @@ export default function AddCarPage() {
           {success && (
             <Alert className="mb-6 bg-green-50 border-green-200 text-green-800">
               <CheckCircle2 className="h-4 w-4 mr-2" />
-              <AlertDescription>Votre véhicule a été ajouté avec succès ! Redirection vers vos véhicules...</AlertDescription>
+              <AlertDescription>Votre véhicule a été ajouté avec succès et sera examiné par notre équipe.</AlertDescription>
             </Alert>
           )}
           
-          <form onSubmit={handleSubmit} className="space-y-8">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Informations sur le véhicule</CardTitle>
-                <CardDescription>Entrez les informations de base sur votre véhicule</CardDescription>
+                <CardTitle>Informations du véhicule</CardTitle>
+                <CardDescription>Entrez les informations de base de votre véhicule</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -233,6 +288,7 @@ export default function AddCarPage() {
                       name="make" 
                       value={formData.make} 
                       onValueChange={(value) => handleSelectChange("make", value)}
+                      required
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Sélectionner une marque" />
@@ -253,6 +309,7 @@ export default function AddCarPage() {
                       value={formData.model} 
                       onChange={handleInputChange} 
                       placeholder="Ex: Clio, Golf, 308..."
+                      required
                     />
                   </div>
                 </div>
@@ -264,7 +321,7 @@ export default function AddCarPage() {
                       id="year" 
                       name="year" 
                       type="number" 
-                      min="1990" 
+                      min="1900" 
                       max={new Date().getFullYear()} 
                       value={formData.year} 
                       onChange={handleInputChange} 
@@ -299,24 +356,24 @@ export default function AddCarPage() {
                       value={formData.pricePerDay} 
                       onChange={handleInputChange} 
                       placeholder="Ex: 50"
+                      required
                     />
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="doors">Nombre de portes</Label>
-                    <Input 
-                      id="doors" 
-                      name="doors" 
-                      type="number" 
-                      min="2" 
-                      max="7" 
-                      value={formData.doors} 
-                      onChange={handleInputChange} 
-                    />
-                  </div>
-                  
+                <div className="space-y-2">
+                  <Label htmlFor="location">Localisation <span className="text-red-500">*</span></Label>
+                  <Input 
+                    id="location" 
+                    name="location" 
+                    value={formData.location} 
+                    onChange={handleInputChange} 
+                    placeholder="Ex: Paris, France"
+                    required
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="seats">Nombre de places</Label>
                     <Input 
@@ -331,18 +388,20 @@ export default function AddCarPage() {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="location">Localisation <span className="text-red-500">*</span></Label>
+                    <Label htmlFor="doors">Nombre de portes</Label>
                     <Input 
-                      id="location" 
-                      name="location" 
-                      value={formData.location} 
+                      id="doors" 
+                      name="doors" 
+                      type="number" 
+                      min="1" 
+                      max="5" 
+                      value={formData.doors} 
                       onChange={handleInputChange} 
-                      placeholder="Ex: Paris, France"
                     />
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="transmission">Transmission</Label>
                     <Select 

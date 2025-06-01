@@ -19,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { ChevronLeft, User, Info, CheckCircle, XCircle, FileText, Clock, Shield, X, ChevronRight } from "lucide-react"
 import AdminSidebar from "@/components/admin/admin-sidebar"
 import React from "react"
+import { BackButton } from "@/components/ui/back-button"
 
 // Mock data for a car verification request
 const carVerification = {
@@ -128,12 +129,7 @@ export default function CarVerificationDetailsPage({ params }: { params: { id: s
         <div className="flex-1 ml-0 md:ml-64">
           <div className="p-6">
             <div className="flex items-center mb-6">
-              <Button variant="ghost" size="sm" asChild className="mr-4">
-                <Link href="/admin/verification">
-                  <ChevronLeft className="h-4 w-4 mr-1" />
-                  Retour
-                </Link>
-              </Button>
+              <BackButton className="mr-4" />
               <div>
                 <h1 className="text-2xl font-bold">Vérification de véhicule</h1>
                 <p className="text-gray-500 dark:text-gray-400">

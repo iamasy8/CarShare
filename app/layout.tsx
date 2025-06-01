@@ -8,6 +8,7 @@ import { Footer } from "@/components/footer"
 import { AuthProvider } from "@/lib/auth-context"
 import { ReactQueryProvider } from "@/hooks/useReactQuerySetup"
 import { MobileNavigation } from "@/components/ui/mobile-navigation"
+import { ClientLayoutWrapper } from "@/components/client-layout-wrapper"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -28,12 +29,14 @@ export default function RootLayout({
           <AuthProvider>
             <ThemeProvider>
               <RoleThemeProvider>
-                <div className="flex flex-col min-h-screen">
-                  <Header />
-                  <main className="flex-1">{children}</main>
-                  <Footer />
-                  <MobileNavigation />
-                </div>
+                <ClientLayoutWrapper>
+                  <div className="flex flex-col min-h-screen">
+                    <Header />
+                    <main className="flex-1">{children}</main>
+                    <Footer />
+                    <MobileNavigation />
+                  </div>
+                </ClientLayoutWrapper>
               </RoleThemeProvider>
             </ThemeProvider>
           </AuthProvider>

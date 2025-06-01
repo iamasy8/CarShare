@@ -11,6 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
+import { BackButton } from "@/components/ui/back-button"
 
 // Mock data for a conversation
 const mockConversation = {
@@ -133,9 +134,7 @@ export default function ChatWindow({ conversationId, onBack, className, isMobile
       {/* Header */}
       <div className="flex items-center p-4 border-b">
         {isMobile && (
-          <Button variant="ghost" size="icon" className="mr-2" onClick={onBack}>
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
+          <BackButton variant="ghost" size="icon" className="mr-2" label="" onClick={onBack} />
         )}
         <div className="flex items-center flex-1">
           <Avatar className="h-10 w-10 mr-3">
