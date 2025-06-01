@@ -193,7 +193,10 @@ export const validateFiles = (
  * Returns true if NEXT_PUBLIC_USE_REAL_API is set to true or if in production mode
  */
 export const useRealApi = () => {
-  return process.env.NEXT_PUBLIC_USE_REAL_API === 'true' || process.env.NODE_ENV === 'production';
+  // Always use real API data regardless of environment
+  return true;
+  // Original implementation:
+  // return process.env.NEXT_PUBLIC_USE_REAL_API === 'true' || process.env.NODE_ENV === 'production';
 };
 
 /**
@@ -204,12 +207,34 @@ export const parseCarFeatures = (features: string | string[] | null | undefined)
   
   if (typeof features === 'string') {
     try {
-      return JSON.parse(features);
+      // Try to parse as JSON
+      const parsed = JSON.parse(features);
+      
+      // Check if the parsed result is an array
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+      
+      // If it's an object with key-value pairs (like { feature1: true, feature2: false })
+      if (parsed && typeof parsed === 'object') {
+        return Object.entries(parsed)
+          .filter(([_, value]) => value === true || value === 'true')
+          .map(([key]) => key);
+      }
+      
+      // If it's just a single string
+      return [features];
     } catch (e) {
-      console.error('Error parsing car features:', e);
-      return [];
+      // If it's not valid JSON, treat it as a single string feature
+      return [features];
     }
   }
   
-  return features;
+  // If it's already an array
+  if (Array.isArray(features)) {
+    return features;
+  }
+  
+  // Fallback: return empty array
+  return [];
 };

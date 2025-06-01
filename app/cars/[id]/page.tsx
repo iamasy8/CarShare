@@ -65,8 +65,44 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
       setError("")
 
       try {
+        // Get car ID from params and convert to number
+        const carId = parseInt(params.id)
+        if (isNaN(carId)) {
+          throw new Error("Invalid car ID")
+        }
+
         // Always fetch from API
-        const carData = await carService.getCar(parseInt(params.id))
+        const carData = await carService.getCar(carId)
+        
+        // Ensure car.images is always an array
+        if (carData.images && !Array.isArray(carData.images)) {
+          // If it's a string (possibly JSON), try to parse it
+          if (typeof carData.images === 'string') {
+            try {
+              carData.images = JSON.parse(carData.images)
+            } catch (e) {
+              // If parsing fails, convert to single-element array
+              carData.images = [carData.images]
+            }
+          } else {
+            // If it's not a string or array, make it an empty array
+            carData.images = []
+          }
+        }
+        
+        // Same for features
+        if (carData.features && !Array.isArray(carData.features)) {
+          if (typeof carData.features === 'string') {
+            try {
+              carData.features = JSON.parse(carData.features)
+            } catch (e) {
+              carData.features = [carData.features]
+            }
+          } else {
+            carData.features = []
+          }
+        }
+        
         setCar(carData)
       } catch (err) {
         console.error("Error fetching car details:", err)
@@ -170,8 +206,8 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
               {/* Car images */}
               <div className="relative aspect-[16/9] bg-gray-100 overflow-hidden">
                 <img
-                  src={car.images[0] || "/placeholder.svg"}
-                alt={car.title}
+                  src={(car.images && car.images.length > 0 ? car.images[0] : "") || "/placeholder.svg"}
+                  alt={car.title}
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute top-4 right-4 flex gap-2">
@@ -182,21 +218,21 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
                     <Share2 className="h-5 w-5" />
                   </button>
                 </div>
-            </div>
+              </div>
 
               {/* Thumbnail images */}
-              {car.images.length > 1 && (
+              {car.images && car.images.length > 1 && (
                 <div className="p-4 grid grid-cols-4 gap-2">
-              {car.images.map((image, index) => (
+                  {car.images.map((image, index) => (
                     <div key={index} className="aspect-[4/3] rounded-md overflow-hidden bg-gray-100">
                       <img
-                    src={image || "/placeholder.svg"}
-                    alt={`${car.title} - Image ${index + 1}`}
+                        src={image || "/placeholder.svg"}
+                        alt={`${car.title} - Image ${index + 1}`}
                         className="w-full h-full object-cover"
-                  />
+                      />
                     </div>
-              ))}
-            </div>
+                  ))}
+                </div>
               )}
 
           {/* Car details */}
@@ -278,17 +314,22 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
                     <p className="text-gray-600">{car.description}</p>
             </TabsContent>
                   <TabsContent value="equipments" className="space-y-4">
-              <div className="grid grid-cols-2 gap-2">
-                {parseCarFeatures(car.features).map((feature, index) => (
-                  <div key={index} className="flex items-center">
+                    <div className="grid grid-cols-2 gap-2">
+                      {parseCarFeatures(car.features).map((feature, index) => (
+                        <div key={index} className="flex items-center">
                           <svg className="h-4 w-4 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                           </svg>
                           <span className="text-gray-700">{feature}</span>
-                  </div>
-                ))}
-              </div>
-            </TabsContent>
+                        </div>
+                      ))}
+                      {parseCarFeatures(car.features).length === 0 && (
+                        <div className="col-span-2 text-gray-500">
+                          Aucun équipement spécifique mentionné
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
                   <TabsContent value="location" className="space-y-4">
                     <div className="flex items-center mb-4">
                       <MapPin className="h-5 w-5 text-gray-400 mr-2" />
