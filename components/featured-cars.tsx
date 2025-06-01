@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { Car } from "@/lib/api"
 import { carService } from "@/lib/api/cars/carService"
-import { useRealApi } from "@/lib/utils"
+import { useRealApi, sanitizeImageUrl } from "@/lib/utils"
 
 export default function FeaturedCars() {
   const [cars, setCars] = useState<Car[]>([])
@@ -105,9 +105,15 @@ export default function FeaturedCars() {
               >
                 <div className="relative aspect-[4/3] overflow-hidden">
                   <img
-                    src={car.images && car.images.length > 0 ? car.images[0] : "/placeholder.svg"}
+                    src={car.images && car.images.length > 0 ? sanitizeImageUrl(car.images[0]) : "/placeholder.svg"}
                     alt={car.title}
                     className="object-cover w-full h-full transition-transform group-hover:scale-105"
+                    onError={(e) => {
+                      console.error(`Failed to load image: ${car.images?.[0]}`);
+                      e.currentTarget.src = "/placeholder.svg";
+                    }}
+                    referrerPolicy="no-referrer"
+                    crossOrigin="anonymous"
                   />
                   <button
                     className="absolute top-2 right-2 p-1.5 rounded-full bg-white/80 dark:bg-black/50 hover:bg-white dark:hover:bg-black/70 text-foreground"

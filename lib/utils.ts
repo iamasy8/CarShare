@@ -238,3 +238,27 @@ export const parseCarFeatures = (features: string | string[] | null | undefined)
   // Fallback: return empty array
   return [];
 };
+
+/**
+ * Sanitize image URL to handle escaped JSON strings
+ */
+export function sanitizeImageUrl(url: string | undefined | null): string {
+  if (!url) return "/placeholder.svg";
+  
+  // Replace escaped forward slashes
+  let sanitized = url.replace(/\\\//g, '/');
+  
+  // Fix placeholder URLs with excessive forward slashes
+  if (sanitized.includes('placeholder.com')) {
+    sanitized = sanitized.replace(/https:\/+via\.placeholder\.com\/+/, 'https://via.placeholder.com/');
+  }
+  
+  // Check if the URL is valid
+  try {
+    new URL(sanitized);
+    return sanitized;
+  } catch (e) {
+    console.warn('Invalid URL detected:', sanitized);
+    return "/placeholder.svg";
+  }
+}

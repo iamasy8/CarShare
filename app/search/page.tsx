@@ -15,6 +15,7 @@ import { carHelpers, handleApiError } from "@/lib/api-helpers"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { parseCarFeatures } from "@/lib/utils"
+import { sanitizeImageUrl } from "@/lib/utils"
 
 // Type definitions
 interface FilterState {
@@ -694,9 +695,15 @@ export default function SearchPage() {
                   <div className="flex flex-col md:flex-row">
                     <div className="relative md:w-1/3">
                       <img
-                            src={car.images[0] || "/placeholder.svg"}
+                        src={sanitizeImageUrl(car.images[0]) || "/placeholder.svg"}
                         alt={car.title}
                         className="w-full h-48 md:h-full object-cover"
+                        onError={(e) => {
+                          console.error(`Failed to load image: ${car.images[0]}`);
+                          e.currentTarget.src = "/placeholder.svg";
+                        }}
+                        referrerPolicy="no-referrer"
+                        crossOrigin="anonymous"
                       />
                       <button className="absolute top-2 right-2 p-1.5 rounded-full bg-white/80 hover:bg-white text-gray-600 hover:text-red-500">
                         <Heart className="h-5 w-5" />

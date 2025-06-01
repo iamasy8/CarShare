@@ -20,6 +20,7 @@ import { ChevronLeft, User, Info, CheckCircle, XCircle, FileText, Clock, Shield,
 import AdminSidebar from "@/components/admin/admin-sidebar"
 import React from "react"
 import { BackButton } from "@/components/ui/back-button"
+import { sanitizeImageUrl } from "@/lib/utils"
 
 // Mock data for a car verification request
 const carVerification = {
@@ -265,9 +266,15 @@ export default function CarVerificationDetailsPage({ params }: { params: { id: s
                           }}
                         >
                           <img
-                            src={image.url || "/placeholder.svg"}
+                            src={sanitizeImageUrl(image.url) || "/placeholder.svg"}
                             alt={image.caption}
                             className="w-full h-full object-cover"
+                            onError={(e) => {
+                              console.error(`Failed to load image: ${image.url}`);
+                              e.currentTarget.src = "/placeholder.svg";
+                            }}
+                            referrerPolicy="no-referrer"
+                            crossOrigin="anonymous"
                           />
                           <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-1.5">
                             {image.caption}
@@ -438,9 +445,15 @@ export default function CarVerificationDetailsPage({ params }: { params: { id: s
         >
           <div className="relative max-w-4xl w-full" onClick={(e) => e.stopPropagation()}>
             <img
-              src={carVerification.images[currentImageIndex].url || "/placeholder.svg"}
+              src={sanitizeImageUrl(carVerification.images[currentImageIndex].url) || "/placeholder.svg"}
               alt={carVerification.images[currentImageIndex].caption}
               className="w-full h-auto max-h-[80vh] object-contain"
+              onError={(e) => {
+                console.error(`Failed to load image: ${carVerification.images[currentImageIndex].url}`);
+                e.currentTarget.src = "/placeholder.svg";
+              }}
+              referrerPolicy="no-referrer"
+              crossOrigin="anonymous"
             />
             <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white p-4">
               <p className="text-center">{carVerification.images[currentImageIndex].caption}</p>

@@ -16,7 +16,7 @@ import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
 import { AlertDescription, Alert } from "@/components/ui/alert"
 import { DateRange } from "react-day-picker"
-import { parseCarFeatures } from "@/lib/utils"
+import { parseCarFeatures, sanitizeImageUrl } from "@/lib/utils"
 import React from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { BackButton } from "@/components/ui/back-button"
@@ -387,9 +387,15 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
               {/* Car images */}
               <div className="relative aspect-[16/9] bg-gray-100 overflow-hidden">
                 <img
-                  src={(car.images && car.images.length > 0 ? car.images[0] : "") || "/placeholder.svg"}
+                  src={sanitizeImageUrl((car.images && car.images.length > 0 ? car.images[0] : "") || "/placeholder.svg")}
                   alt={car.title}
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    console.error(`Failed to load image: ${car.images?.[0]}`);
+                    e.currentTarget.src = "/placeholder.svg";
+                  }}
+                  referrerPolicy="no-referrer"
+                  crossOrigin="anonymous"
                 />
                 <div className="absolute top-4 right-4 flex gap-2">
                   <button 
@@ -415,9 +421,15 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
                   {car.images.map((image, index) => (
                     <div key={index} className="aspect-[4/3] rounded-md overflow-hidden bg-gray-100">
                       <img
-                        src={image || "/placeholder.svg"}
+                        src={sanitizeImageUrl(image) || "/placeholder.svg"}
                         alt={`${car.title} - Image ${index + 1}`}
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          console.error(`Failed to load image: ${image}`);
+                          e.currentTarget.src = "/placeholder.svg";
+                        }}
+                        referrerPolicy="no-referrer"
+                        crossOrigin="anonymous"
                       />
                     </div>
                   ))}

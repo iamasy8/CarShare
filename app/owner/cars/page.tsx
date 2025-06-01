@@ -30,6 +30,7 @@ import { useAuth } from "@/lib/auth-context"
 import { carService } from "@/lib/api"
 import { useRealApi } from "@/lib/utils"
 import { RouteProtection } from "@/components/route-protection"
+import { sanitizeImageUrl } from "@/lib/utils"
 
 // Define car type to match our mock data structure
 interface CarData {
@@ -272,10 +273,18 @@ export default function OwnerCarsPage() {
                     <Card key={car.id} className="overflow-hidden">
                       <div className="relative h-48">
                         <Image
-                          src={car.image}
+                          src={sanitizeImageUrl(car.image) || "/placeholder.svg"}
                           alt={`${car.make} ${car.model}`}
                           fill
                           className="object-cover"
+                          onError={(e) => {
+                            // Replace the problematic image with placeholder
+                            console.error(`Failed to load image: ${car.image}`);
+                            // @ts-ignore - TypeScript doesn't know about onError on Image
+                            e.currentTarget.src = "/placeholder.svg";
+                          }}
+                          unoptimized={true}
+                          referrerPolicy="no-referrer"
                         />
                         <div className="absolute top-2 right-2">
                           {getStatusBadge(car.status)}
