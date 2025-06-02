@@ -22,12 +22,14 @@ export default function ReservationsPage() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [cancellingId, setCancellingId] = useState<number | null>(null)
   
   const fetchBookings = async () => {
     if (!isAuthenticated) return
     
     setLoading(true)
     setError("")
+    setCancellingId(null)
     
     try {
       const bookingsData = await bookingService.getBookings()
@@ -149,7 +151,11 @@ export default function ReservationsPage() {
                   ) : (
                     <div className="grid grid-cols-1 gap-6">
                       {activeBookings.map(booking => (
-                        <BookingCard key={booking.id} booking={booking} />
+                        <BookingCard 
+                          key={booking.id} 
+                          booking={booking} 
+                          onCancelled={fetchBookings}
+                        />
                       ))}
                     </div>
                   )}
@@ -163,7 +169,11 @@ export default function ReservationsPage() {
                   ) : (
                     <div className="grid grid-cols-1 gap-6">
                       {pastBookings.map(booking => (
-                        <BookingCard key={booking.id} booking={booking} />
+                        <BookingCard 
+                          key={booking.id} 
+                          booking={booking} 
+                          onCancelled={fetchBookings}
+                        />
                       ))}
                     </div>
                   )}
@@ -177,8 +187,36 @@ export default function ReservationsPage() {
   )
 }
 
-function BookingCard({ booking }: { booking: Booking }) {
+function BookingCard({ booking, onCancelled }: { booking: Booking, onCancelled?: () => void }) {
   const router = useRouter()
+  const [cancelling, setCancelling] = useState(false)
+  const [cancelError, setCancelError] = useState("")
+  
+  const handleCancelBooking = async () => {
+    if (!confirm("Êtes-vous sûr de vouloir annuler cette réservation ?")) {
+      return
+    }
+    
+    setCancelling(true)
+    setCancelError("")
+    
+    try {
+      await bookingService.cancelBooking(booking.id, "Annulée par le client")
+      
+      // Notify parent component to refresh the bookings list
+      if (onCancelled) {
+        onCancelled()
+      } else {
+        // Refresh the page if no callback provided
+        router.refresh()
+      }
+    } catch (err: any) {
+      console.error("Error cancelling booking:", err)
+      setCancelError(err?.message || "Impossible d'annuler la réservation. Veuillez réessayer.")
+    } finally {
+      setCancelling(false)
+    }
+  }
   
   const formatDate = (date: Date | string) => {
     if (!date) return ""
@@ -221,6 +259,12 @@ function BookingCard({ booking }: { booking: Booking }) {
         </div>
       </CardHeader>
       <CardContent>
+        {cancelError && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4 mr-2" />
+            <AlertDescription>{cancelError}</AlertDescription>
+          </Alert>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="aspect-[4/3] bg-gray-100 rounded-md overflow-hidden">
             <img 
@@ -266,11 +310,17 @@ function BookingCard({ booking }: { booking: Booking }) {
         {booking.status === 'pending' && (
           <Button 
             variant="destructive"
-            onClick={() => {
-              // Handle cancellation
-            }}
+            onClick={handleCancelBooking}
+            disabled={cancelling}
           >
-            Annuler
+            {cancelling ? (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                Annulation...
+              </>
+            ) : (
+              'Annuler'
+            )}
           </Button>
         )}
       </CardFooter>

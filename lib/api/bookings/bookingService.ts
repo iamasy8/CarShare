@@ -115,7 +115,7 @@ class BookingService {
    * Cancel a booking (for client)
    */
   async cancelBooking(id: number, reason?: string): Promise<Booking> {
-    return apiClient.put<Booking>(`/bookings/${id}/cancel`, { reason });
+    return apiClient.post<Booking>(`/bookings/${id}/cancel`, { reason });
   }
   
   /**
