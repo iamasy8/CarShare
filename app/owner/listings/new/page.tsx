@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
@@ -22,6 +22,11 @@ const carMakes = [
   "Skoda", "Toyota", "Volkswagen", "Volvo"
 ]
 
+// Car types
+const carTypes = [
+  "Citadine", "Berline", "SUV", "Break", "Coupé", "Cabriolet", "Monospace", "Utilitaire"
+]
+
 export default function NewCarListing() {
   const { user, isOwner, status } = useAuth()
   const router = useRouter()
@@ -33,12 +38,13 @@ export default function NewCarListing() {
   const [formData, setFormData] = useState({
     make: "",
     model: "",
-    year: "",
-    doors: "",
-    seats: "",
-    transmission: "automatic",
-    fuelType: "gasoline",
-    pricePerDay: "",
+    year: new Date().getFullYear().toString(),
+    type: "", // Added required car type field
+    doors: "5",
+    seats: "5",
+    transmission: "Automatique",
+    fuel: "Essence", // Changed from fuelType to fuel to match backend expectations
+    price_per_day: "", // Changed from pricePerDay to price_per_day to match backend expectations
     location: "",
     description: "",
     features: {
@@ -49,7 +55,7 @@ export default function NewCarListing() {
       childSeat: false,
       sunroof: false
     },
-    availableImmediately: true
+    available_immediately: true // Changed from availableImmediately to available_immediately to match backend expectations
   })
   
   // Image upload state
@@ -79,7 +85,7 @@ export default function NewCarListing() {
   const handleAvailabilityToggle = () => {
     setFormData(prev => ({ 
       ...prev, 
-      availableImmediately: !prev.availableImmediately 
+      available_immediately: !prev.available_immediately 
     }))
   }
   
@@ -97,13 +103,30 @@ export default function NewCarListing() {
   // Submit handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log("Submitting form data:", formData)
+    
+    // Debug which fields are missing
+    console.log("Field validation:", {
+      make: Boolean(formData.make),
+      model: Boolean(formData.model),
+      type: Boolean(formData.type),
+      price_per_day: Boolean(formData.price_per_day)
+    })
+    
     setError("")
     setIsLoading(true)
     
     try {
       // Validation
-      if (!formData.make || !formData.model || !formData.pricePerDay) {
-        throw new Error("Please fill in all required fields")
+      if (!formData.make || !formData.model || !formData.price_per_day || !formData.type) {
+        const missingFields = [];
+        if (!formData.make) missingFields.push("make");
+        if (!formData.model) missingFields.push("model");
+        if (!formData.type) missingFields.push("type");
+        if (!formData.price_per_day) missingFields.push("price_per_day");
+        
+        console.error("Missing required fields:", missingFields);
+        throw new Error(`Please fill in all required fields: ${missingFields.join(", ")}`)
       }
       
       if (images.length === 0) {
@@ -111,36 +134,39 @@ export default function NewCarListing() {
       }
       
       if (useRealApi()) {
-        // Prepare form data for API
-        const formDataToSend = new FormData();
+        // Create form data for file upload
+        const carFormData = new FormData();
         
-        // Add car details
-        formDataToSend.append('make', formData.make);
-        formDataToSend.append('model', formData.model);
-        formDataToSend.append('year', formData.year.toString());
-        formDataToSend.append('doors', formData.doors.toString());
-        formDataToSend.append('seats', formData.seats.toString());
-        formDataToSend.append('transmission', formData.transmission);
-        formDataToSend.append('fuel', formData.fuelType);
-        formDataToSend.append('price', formData.pricePerDay.toString());
-        formDataToSend.append('location', formData.location);
-        formDataToSend.append('description', formData.description);
+        // Add all text fields with proper field names expected by the backend
+        carFormData.append('make', formData.make);
+        carFormData.append('model', formData.model);
+        carFormData.append('year', formData.year.toString());
+        carFormData.append('type', formData.type);
+        carFormData.append('doors', formData.doors.toString());
+        carFormData.append('seats', formData.seats.toString());
+        carFormData.append('transmission', formData.transmission);
+        carFormData.append('fuel', formData.fuel);
+        carFormData.append('price_per_day', formData.price_per_day.toString());
+        carFormData.append('location', formData.location);
+        carFormData.append('description', formData.description);
         
-        // Add features
-        Object.entries(formData.features).forEach(([key, value]) => {
-          formDataToSend.append(`features[${key}]`, value.toString());
-        });
+        // Add features as JSON
+        carFormData.append('features', JSON.stringify(formData.features));
         
         // Add images
         images.forEach((image, index) => {
-          formDataToSend.append(`images[${index}]`, image);
+          carFormData.append(`images[${index}]`, image);
         });
         
         // Add availability
-        formDataToSend.append('availableImmediately', formData.availableImmediately.toString());
+        carFormData.append('available_immediately', formData.available_immediately.toString());
+        
+        // Log what we're sending to help debug
+        console.log("FormData being sent:", Array.from(carFormData.entries()))
         
         // Send to API
-        await carService.createCar(formDataToSend);
+        const response = await carService.createCar(carFormData);
+        console.log("Car created successfully:", response);
       } else {
         // For development - simulate image upload
         const uploadPromise = new Promise<void>((resolve) => {
@@ -174,16 +200,13 @@ export default function NewCarListing() {
     }
   }
   
-  // Redirect if not authenticated or not owner
-  if (status === "unauthenticated") {
-    router.push("/login")
-    return null
-  }
+  // Use useEffect for redirection to avoid React rendering errors
+  useEffect(() => {
+    router.push("/owner/cars/add")
+  }, [router])
   
-  if (status === "authenticated" && !isOwner) {
-    router.push("/dashboard")
-    return null
-  }
+  // Return a loading state while redirecting
+  return <div className="min-h-screen flex items-center justify-center">Redirecting...</div>
   
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
@@ -264,6 +287,25 @@ export default function NewCarListing() {
                   />
                 </div>
                 
+                <div className="space-y-2">
+                  <Label htmlFor="type">Type <span className="text-red-500">*</span></Label>
+                  <Select 
+                    name="type" 
+                    value={formData.type} 
+                    onValueChange={(value) => handleSelectChange("type", value)}
+                    required
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select car type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {carTypes.map(type => (
+                        <SelectItem key={type} value={type}>{type}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="doors">Doors</Label>
@@ -309,11 +351,11 @@ export default function NewCarListing() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="fuelType">Fuel Type</Label>
+                  <Label htmlFor="fuel">Fuel Type</Label>
                   <Select 
-                    name="fuelType" 
-                    value={formData.fuelType} 
-                    onValueChange={(value) => handleSelectChange("fuelType", value)}
+                    name="fuel" 
+                    value={formData.fuel} 
+                    onValueChange={(value) => handleSelectChange("fuel", value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select fuel type" />
@@ -329,12 +371,12 @@ export default function NewCarListing() {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="pricePerDay">Price Per Day (€) <span className="text-red-500">*</span></Label>
+                <Label htmlFor="price_per_day">Price Per Day (€) <span className="text-red-500">*</span></Label>
                 <Input 
-                  id="pricePerDay" 
-                  name="pricePerDay" 
+                  id="price_per_day" 
+                  name="price_per_day" 
                   type="number" 
-                  value={formData.pricePerDay} 
+                  value={formData.price_per_day} 
                   onChange={handleInputChange} 
                   placeholder="e.g. 50"
                 />
@@ -459,11 +501,11 @@ export default function NewCarListing() {
             <CardContent>
               <div className="flex items-center space-x-2">
                 <Switch 
-                  id="availableImmediately" 
-                  checked={formData.availableImmediately} 
+                  id="available_immediately" 
+                  checked={formData.available_immediately} 
                   onCheckedChange={handleAvailabilityToggle} 
                 />
-                <Label htmlFor="availableImmediately">Available immediately</Label>
+                <Label htmlFor="available_immediately">Available immediately</Label>
               </div>
               <p className="text-sm text-gray-500 mt-2 flex items-center">
                 <Info className="h-4 w-4 mr-1" />
