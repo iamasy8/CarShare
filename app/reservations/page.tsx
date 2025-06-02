@@ -88,9 +88,9 @@ export default function ReservationsPage() {
 
   return (
     <RouteProtection requiredRoles={["client", "admin", "superadmin"]}>
-      <div className="container py-10">
-        <h1 className="text-3xl font-bold mb-2">Mes réservations</h1>
-        <p className="text-gray-500 dark:text-gray-400 mb-8">Gérez vos réservations de véhicules</p>
+      <div className="container py-10 max-w-4xl mx-auto">
+        <h1 className="text-3xl font-bold mb-2 text-center">Mes réservations</h1>
+        <p className="text-gray-500 dark:text-gray-400 mb-8 text-center">Gérez vos réservations de véhicules</p>
         
         {error && (
           <Alert variant="destructive" className="mb-6">
@@ -117,24 +117,26 @@ export default function ReservationsPage() {
           <>
             {!error && (
               <Tabs defaultValue="active" className="w-full">
-                <TabsList className="mb-6">
-                  <TabsTrigger value="active">
-                    Réservations actives
-                    {activeBookings.length > 0 && (
-                      <span className="ml-2 bg-red-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                        {activeBookings.length}
-                      </span>
-                    )}
-                  </TabsTrigger>
-                  <TabsTrigger value="past">
-                    Historique
-                    {pastBookings.length > 0 && (
-                      <span className="ml-2 bg-gray-400 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                        {pastBookings.length}
-                      </span>
-                    )}
-                  </TabsTrigger>
-                </TabsList>
+                <div className="flex justify-center mb-4">
+                  <TabsList>
+                    <TabsTrigger value="active">
+                      Réservations actives
+                      {activeBookings.length > 0 && (
+                        <span className="ml-2 bg-red-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                          {activeBookings.length}
+                        </span>
+                      )}
+                    </TabsTrigger>
+                    <TabsTrigger value="past">
+                      Historique
+                      {pastBookings.length > 0 && (
+                        <span className="ml-2 bg-gray-400 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                          {pastBookings.length}
+                        </span>
+                      )}
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
                 
                 <TabsContent value="active" className="space-y-6">
                   {activeBookings.length === 0 ? (
@@ -145,9 +147,11 @@ export default function ReservationsPage() {
                       </Button>
                     </div>
                   ) : (
-                    activeBookings.map(booking => (
-                      <BookingCard key={booking.id} booking={booking} />
-                    ))
+                    <div className="grid grid-cols-1 gap-6">
+                      {activeBookings.map(booking => (
+                        <BookingCard key={booking.id} booking={booking} />
+                      ))}
+                    </div>
                   )}
                 </TabsContent>
                 
@@ -157,9 +161,11 @@ export default function ReservationsPage() {
                       <p className="text-gray-500">Vous n'avez pas d'historique de réservations.</p>
                     </div>
                   ) : (
-                    pastBookings.map(booking => (
-                      <BookingCard key={booking.id} booking={booking} />
-                    ))
+                    <div className="grid grid-cols-1 gap-6">
+                      {pastBookings.map(booking => (
+                        <BookingCard key={booking.id} booking={booking} />
+                      ))}
+                    </div>
                   )}
                 </TabsContent>
               </Tabs>
