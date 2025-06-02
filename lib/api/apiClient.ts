@@ -270,7 +270,7 @@ export default class ApiClient {
         if (error instanceof AxiosError && error.response?.data) {
           const errorMessage = error.response.data.message || 'An error occurred while uploading';
           throw new ApiError(errorMessage, error.response.status, error.response.data);
-        }
+          }
         throw error;
       }
     } else {

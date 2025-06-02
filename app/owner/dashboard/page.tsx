@@ -13,9 +13,8 @@ import {
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { bookingService, carService } from "@/lib/api"
-import { ownerDashboardHelpers, bookingHelpers, handleApiError, DashboardSummary, Notification } from "@/lib/api-helpers"
+import { ownerDashboardHelpers, bookingHelpers, handleApiError, DashboardSummary } from "@/lib/api-helpers"
 import { handleError, useRealApi } from "@/lib/utils"
-import { mockBookings, mockEarnings, mockListings, mockNotifications } from "@/lib/mock-data"
 
 // Define a type for our mock bookings to match the expected structure
 interface MockBooking {
@@ -58,9 +57,9 @@ const mockBookings: MockBooking[] = [
 ];
 
 const mockNotifications = [
-  { id: 201, type: "booking", message: "New booking request for Tesla Model 3", time: "2h ago", read: false },
-  { id: 202, type: "system", message: "Your account subscription will renew in 3 days", time: "1d ago", read: false },
-  { id: 203, type: "review", message: "You received a new 5-star review", time: "2d ago", read: true },
+  { id: 201, type: "booking" as const, message: "New booking request for Tesla Model 3", time: "2h ago", read: false },
+  { id: 202, type: "system" as const, message: "Your account subscription will renew in 3 days", time: "1d ago", read: false },
+  { id: 203, type: "review" as const, message: "You received a new 5-star review", time: "2d ago", read: true },
 ];
 
 const mockEarnings = {
@@ -77,14 +76,8 @@ const mockEarnings = {
   ]
 };
 
-// Define the Notification type if it's not imported
-interface Notification {
-  id: number;
-  type: "booking" | "system" | "review";
-  message: string;
-  time: string;
-  read: boolean;
-}
+// Import Notification type from api-helpers instead of redefining
+import type { Notification } from "@/lib/api-helpers"
 
 export default function OwnerDashboard() {
   const { user, logout, isOwner, status } = useAuth()
@@ -123,7 +116,7 @@ export default function OwnerDashboard() {
           
           try {
             // Fetch listings
-            let listings;
+            let listings: any[] = [];
             try {
               listings = await carService.getOwnerCars();
             } catch (err) {
@@ -134,7 +127,7 @@ export default function OwnerDashboard() {
             const activeListings = listings.filter(l => l.status === "approved").length;
             
             // Fetch bookings with retry
-            let bookings = [];
+            let bookings: any[] = [];
             let retryCount = 0;
             const maxRetries = 3;
             
@@ -174,7 +167,7 @@ export default function OwnerDashboard() {
             }
             
             // Use mock notifications directly instead of fetching from API
-            let notifications = mockNotifications;
+            const notifications = mockNotifications;
             
             setDashboardData({
               activeListings,
@@ -200,7 +193,7 @@ export default function OwnerDashboard() {
             totalEarnings: mockEarnings.monthly,
             pendingEarnings: mockEarnings.pending,
             recentBookings: mockBookings,
-            notifications: mockNotifications as Notification[]
+            notifications: [] // Simplified for retry
           });
           
           // Simulate API delay
@@ -310,7 +303,7 @@ export default function OwnerDashboard() {
         if (status === "authenticated" && isOwner) {
           try {
             // Fetch listings
-            let listings;
+            let listings: any[] = [];
             try {
               listings = await carService.getOwnerCars();
             } catch (err) {
@@ -320,7 +313,7 @@ export default function OwnerDashboard() {
             const activeListings = listings.filter(l => l.status === "approved").length;
             
             // Fetch bookings with retry
-            let bookings = [];
+            let bookings: any[] = [];
             let retryCount = 0;
             const maxRetries = 3;
             

@@ -133,7 +133,7 @@ export default function AddCarPage() {
           carFormData.append(key, JSON.stringify(value))
         } else {
           carFormData.append(key, String(value))
-        }
+      }
       })
       
       // Add images
@@ -145,12 +145,12 @@ export default function AddCarPage() {
       if (useRealApi()) {
         const response = await carService.createCar(carFormData)
         console.log("Car created successfully:", response)
-        
-        // Show success message
+          
+          // Show success message
         setSuccess(true)
-        
+          
         // Redirect after 2 seconds
-        setTimeout(() => {
+          setTimeout(() => {
           router.push("/owner/cars")
         }, 2000)
       } else {

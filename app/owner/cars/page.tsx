@@ -280,8 +280,9 @@ export default function OwnerCarsPage() {
                           onError={(e) => {
                             // Replace the problematic image with placeholder
                             console.error(`Failed to load image: ${car.image}`);
-                            // @ts-ignore - TypeScript doesn't know about onError on Image
-                            e.currentTarget.src = "/placeholder.svg";
+                            // Handle image error by casting to HTMLImageElement
+                            const imgElement = e.currentTarget as HTMLImageElement;
+                            imgElement.src = "/placeholder.svg";
                           }}
                           unoptimized={true}
                           referrerPolicy="no-referrer"
