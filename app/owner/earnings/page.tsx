@@ -1,12 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
+import { RouteProtection } from "@/components/route-protection"
 
 // Mock earnings data
 const mockEarnings = {
@@ -60,184 +62,200 @@ const mockPayments = [
 ];
 
 export default function EarningsPage() {
-  const { user } = useAuth()
+  const { user, isOwner, status } = useAuth()
+  const router = useRouter()
   const [period, setPeriod] = useState<"monthly" | "yearly">("monthly")
   
+  // Redirect if not authenticated or not an owner
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login")
+      return
+    }
+    
+    if (status === "authenticated" && !isOwner) {
+      router.push("/dashboard")
+      return
+    }
+  }, [status, isOwner, router])
+  
   return (
-    <div className="container py-8">
-      <h1 className="text-3xl font-bold mb-6">Earnings</h1>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Monthly Earnings</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">€{mockEarnings.monthly}</div>
-          </CardContent>
-        </Card>
+    <RouteProtection requiredRoles={["owner", "admin", "superadmin"]}>
+      <div className="container py-8">
+        <h1 className="text-3xl font-bold mb-6">Earnings</h1>
         
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Yearly Earnings</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">€{mockEarnings.yearly}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Pending Payments</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">€{mockEarnings.pending}</div>
-          </CardContent>
-        </Card>
-      </div>
-      
-      <Tabs defaultValue="overview" className="space-y-8">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="payments">Payments</TabsTrigger>
-          <TabsTrigger value="history">Billing History</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="overview">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card>
-            <CardHeader>
-              <CardTitle>Earnings History</CardTitle>
-              <CardDescription>Your earnings over time</CardDescription>
-              <div className="flex space-x-2 mt-2">
-                <Button 
-                  variant={period === "monthly" ? "default" : "outline"} 
-                  size="sm" 
-                  onClick={() => setPeriod("monthly")}
-                >
-                  Monthly
-                </Button>
-                <Button 
-                  variant={period === "yearly" ? "default" : "outline"} 
-                  size="sm" 
-                  onClick={() => setPeriod("yearly")}
-                >
-                  Yearly
-                </Button>
-              </div>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Monthly Earnings</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-80 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
-                    data={mockEarnings.history}
-                    margin={{
-                      top: 10,
-                      right: 30,
-                      left: 0,
-                      bottom: 0,
-                    }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => [`€${value}`, 'Amount']} />
-                    <Area type="monotone" dataKey="amount" stroke="#f43f5e" fill="#fecdd3" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
+              <div className="text-2xl font-bold">€{mockEarnings.monthly}</div>
             </CardContent>
           </Card>
-        </TabsContent>
-        
-        <TabsContent value="payments">
+          
           <Card>
-            <CardHeader>
-              <CardTitle>Recent Payments</CardTitle>
-              <CardDescription>Payments received for your car rentals</CardDescription>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Yearly Earnings</CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Car</TableHead>
-                    <TableHead>Client</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {mockPayments.map((payment) => (
-                    <TableRow key={payment.id}>
-                      <TableCell>{payment.date.toLocaleDateString()}</TableCell>
-                      <TableCell>{payment.car}</TableCell>
-                      <TableCell>{payment.client}</TableCell>
-                      <TableCell>€{payment.amount}</TableCell>
+              <div className="text-2xl font-bold">€{mockEarnings.yearly}</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Pending Payments</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">€{mockEarnings.pending}</div>
+            </CardContent>
+          </Card>
+        </div>
+        
+        <Tabs defaultValue="overview" className="space-y-8">
+          <TabsList>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="payments">Payments</TabsTrigger>
+            <TabsTrigger value="history">Billing History</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="overview">
+            <Card>
+              <CardHeader>
+                <CardTitle>Earnings History</CardTitle>
+                <CardDescription>Your earnings over time</CardDescription>
+                <div className="flex space-x-2 mt-2">
+                  <Button 
+                    variant={period === "monthly" ? "default" : "outline"} 
+                    size="sm" 
+                    onClick={() => setPeriod("monthly")}
+                  >
+                    Monthly
+                  </Button>
+                  <Button 
+                    variant={period === "yearly" ? "default" : "outline"} 
+                    size="sm" 
+                    onClick={() => setPeriod("yearly")}
+                  >
+                    Yearly
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-80 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart
+                      data={mockEarnings.history}
+                      margin={{
+                        top: 10,
+                        right: 30,
+                        left: 0,
+                        bottom: 0,
+                      }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis />
+                      <Tooltip formatter={(value) => [`€${value}`, 'Amount']} />
+                      <Area type="monotone" dataKey="amount" stroke="#f43f5e" fill="#fecdd3" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="payments">
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Payments</CardTitle>
+                <CardDescription>Payments received for your car rentals</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Car</TableHead>
+                      <TableHead>Client</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {mockPayments.map((payment) => (
+                      <TableRow key={payment.id}>
+                        <TableCell>{payment.date.toLocaleDateString()}</TableCell>
+                        <TableCell>{payment.car}</TableCell>
+                        <TableCell>{payment.client}</TableCell>
+                        <TableCell>€{payment.amount}</TableCell>
+                        <TableCell>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            payment.status === "completed" 
+                              ? "bg-green-100 text-green-800" 
+                              : "bg-yellow-100 text-yellow-800"
+                          }`}>
+                            {payment.status === "completed" ? "Paid" : "Pending"}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="history">
+            <Card>
+              <CardHeader>
+                <CardTitle>Billing History</CardTitle>
+                <CardDescription>Your subscription billing history</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-4">
+                  <Button variant="outline" size="sm" asChild>
+                    <a href="/owner/billing-history">View Complete Billing History</a>
+                  </Button>
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell>01/06/2023</TableCell>
+                      <TableCell>Abonnement Standard (Mensuel)</TableCell>
+                      <TableCell>€19.99</TableCell>
                       <TableCell>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          payment.status === "completed" 
-                            ? "bg-green-100 text-green-800" 
-                            : "bg-yellow-100 text-yellow-800"
-                        }`}>
-                          {payment.status === "completed" ? "Paid" : "Pending"}
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Payé
                         </span>
                       </TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="history">
-          <Card>
-            <CardHeader>
-              <CardTitle>Billing History</CardTitle>
-              <CardDescription>Your subscription billing history</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="mb-4">
-                <Button variant="outline" size="sm" asChild>
-                  <a href="/owner/billing-history">View Complete Billing History</a>
-                </Button>
-              </div>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow>
-                    <TableCell>01/06/2023</TableCell>
-                    <TableCell>Abonnement Standard (Mensuel)</TableCell>
-                    <TableCell>€19.99</TableCell>
-                    <TableCell>
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Payé
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell>01/05/2023</TableCell>
-                    <TableCell>Abonnement Standard (Mensuel)</TableCell>
-                    <TableCell>€19.99</TableCell>
-                    <TableCell>
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Payé
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
+                    <TableRow>
+                      <TableCell>01/05/2023</TableCell>
+                      <TableCell>Abonnement Standard (Mensuel)</TableCell>
+                      <TableCell>€19.99</TableCell>
+                      <TableCell>
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Payé
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </RouteProtection>
   )
 } 
