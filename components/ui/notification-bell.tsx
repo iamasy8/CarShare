@@ -1,52 +1,62 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { Bell } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { cn } from "@/lib/utils"
+import { cn, useRealApi } from "@/lib/utils"
 
 interface Notification {
-  id: string
-  title: string
+  id: string | number
+  title?: string
   message: string
-  date: Date
+  date?: Date
+  time?: string
   read: boolean
-  type: "message" | "booking" | "system"
+  type: "message" | "booking" | "system" | "review"
 }
 
+// Mock notifications data
+const mockNotifications: Notification[] = [
+  {
+    id: "1",
+    title: "Nouvelle réservation",
+    message: "Vous avez une nouvelle réservation pour votre Renault Clio",
+    date: new Date(),
+    read: false,
+    type: "booking",
+  },
+  {
+    id: "2",
+    title: "Message de Julie Martin",
+    message: "Bonjour, est-ce que la voiture est disponible le week-end prochain ?",
+    date: new Date(Date.now() - 3600000), // 1 hour ago
+    read: false,
+    type: "message",
+  },
+  {
+    id: "3",
+    title: "Mise à jour système",
+    message: "Nous avons mis à jour nos conditions d'utilisation",
+    date: new Date(Date.now() - 86400000), // 1 day ago
+    read: true,
+    type: "system",
+  },
+];
+
 export function NotificationBell() {
-  const [notifications, setNotifications] = useState<Notification[]>([
-    // Example notifications - in a real app, these would come from an API
-    {
-      id: "1",
-      title: "Nouvelle réservation",
-      message: "Vous avez une nouvelle réservation pour votre Renault Clio",
-      date: new Date(),
-      read: false,
-      type: "booking",
-    },
-    {
-      id: "2",
-      title: "Message de Julie Martin",
-      message: "Bonjour, est-ce que la voiture est disponible le week-end prochain ?",
-      date: new Date(Date.now() - 3600000), // 1 hour ago
-      read: false,
-      type: "message",
-    },
-    {
-      id: "3",
-      title: "Mise à jour système",
-      message: "Nous avons mis à jour nos conditions d'utilisation",
-      date: new Date(Date.now() - 86400000), // 1 day ago
-      read: true,
-      type: "system",
-    },
-  ])
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [loading, setLoading] = useState(true)
+  
+  useEffect(() => {
+    // Just use mock data directly
+    setNotifications(mockNotifications);
+    setLoading(false);
+  }, [])
   
   const unreadCount = notifications.filter(n => !n.read).length
   
-  const markAsRead = (id: string) => {
+  const markAsRead = (id: string | number) => {
     setNotifications(notifications.map(n => 
       n.id === id ? { ...n, read: true } : n
     ))
@@ -73,7 +83,11 @@ export function NotificationBell() {
           <h3 className="font-medium">Notifications</h3>
         </div>
         <div className="max-h-[300px] overflow-auto">
-          {notifications.length > 0 ? (
+          {loading ? (
+            <div className="p-4 text-center text-sm text-muted-foreground">
+              Chargement...
+            </div>
+          ) : notifications.length > 0 ? (
             notifications.map(notification => (
               <div 
                 key={notification.id}
@@ -86,7 +100,7 @@ export function NotificationBell() {
                 <div className="flex justify-between">
                   <h4 className="text-sm font-medium">{notification.title}</h4>
                   <span className="text-xs text-muted-foreground">
-                    {notification.date.toLocaleDateString()}
+                    {notification.date ? notification.date.toLocaleDateString() : notification.time}
                   </span>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">{notification.message}</p>

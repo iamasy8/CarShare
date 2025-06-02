@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { bookingService, carService } from "@/lib/api"
 import { ownerDashboardHelpers, bookingHelpers, handleApiError, DashboardSummary, Notification } from "@/lib/api-helpers"
 import { handleError, useRealApi } from "@/lib/utils"
+import { mockBookings, mockEarnings, mockListings, mockNotifications } from "@/lib/mock-data"
 
 // Define a type for our mock bookings to match the expected structure
 interface MockBooking {
@@ -76,6 +77,15 @@ const mockEarnings = {
   ]
 };
 
+// Define the Notification type if it's not imported
+interface Notification {
+  id: number;
+  type: "booking" | "system" | "review";
+  message: string;
+  time: string;
+  read: boolean;
+}
+
 export default function OwnerDashboard() {
   const { user, logout, isOwner, status } = useAuth()
   const router = useRouter()
@@ -99,20 +109,8 @@ export default function OwnerDashboard() {
   
   // Improved unread message count functionality
   const getUnreadMessagesCount = async (): Promise<number> => {
-    try {
-      if (useRealApi()) {
-        // In production, this would call the API
-        const response = await fetch('/api/messages/unread/count')
-        const data = await response.json()
-        return data.count
-      } else {
-        // Mock data for development
-        return mockNotifications.filter(n => !n.read).length
-      }
-    } catch (error) {
-      console.error("Failed to get unread message count:", error)
-      return 0
-    }
+    // Just return a fixed number for mock data
+    return 2;
   }
   
   // Fetch owner dashboard data
@@ -175,13 +173,8 @@ export default function OwnerDashboard() {
               console.error("Error fetching unread message count:", err);
             }
             
-            // Get notifications with proper read/unread status (with error handling)
-            let notifications = [];
-            try {
-              notifications = await fetch('/api/notifications').then(res => res.json());
-            } catch (err) {
-              console.error("Error fetching notifications:", err);
-            }
+            // Use mock notifications directly instead of fetching from API
+            let notifications = mockNotifications;
             
             setDashboardData({
               activeListings,
