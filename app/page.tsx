@@ -68,60 +68,81 @@ export default function Home() {
               <p className="text-muted-foreground md:text-xl">Des milliers de voitures disponibles près de chez vous</p>
             </div>
             <div className="mx-auto w-full max-w-3xl">
-              <div className="grid gap-4 sm:grid-cols-3">
+              <form 
+                action="/search" 
+                method="get"
+                className="grid gap-4 sm:grid-cols-3"
+              >
                 <div className="relative">
                   <select
+                    name="makes"
+                    id="makes"
                     className="w-full h-12 pl-3 pr-10 text-base placeholder-muted-foreground border border-input bg-background rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent"
                     defaultValue=""
                   >
-                    <option value="" disabled>
-                      Marque
-                    </option>
-                    <option value="audi">Audi</option>
-                    <option value="bmw">BMW</option>
-                    <option value="mercedes">Mercedes</option>
-                    <option value="renault">Renault</option>
-                    <option value="peugeot">Peugeot</option>
+                    <option value="">Toutes les marques</option>
+                    <option value="BMW">BMW</option>
+                    <option value="Audi">Audi</option>
+                    <option value="Mercedes">Mercedes</option>
+                    <option value="Tesla">Tesla</option>
+                    <option value="Toyota">Toyota</option>
+                    <option value="Honda">Honda</option>
+                    <option value="Ford">Ford</option>
+                    <option value="Chevrolet">Chevrolet</option>
                   </select>
                   <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                    <svg className="w-5 h-5 text-muted-foreground" fill="currentColor" viewBox="0 0 20 20">
+                    <svg
+                      className="w-5 h-5 text-gray-400"
+                      viewBox="0 0 20 20"
+                      fill="none"
+                      stroke="currentColor"
+                    >
                       <path
-                        fillRule="evenodd"
-                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                        clipRule="evenodd"
+                        d="M7 7l3-3 3 3m0 6l-3 3-3-3"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
                       />
                     </svg>
                   </div>
                 </div>
                 <div className="relative">
                   <select
+                    name="types"
+                    id="types"
                     className="w-full h-12 pl-3 pr-10 text-base placeholder-muted-foreground border border-input bg-background rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent"
                     defaultValue=""
                   >
-                    <option value="" disabled>
-                      Type
-                    </option>
-                    <option value="citadine">Citadine</option>
-                    <option value="suv">SUV</option>
-                    <option value="berline">Berline</option>
-                    <option value="sport">Sport</option>
-                    <option value="utilitaire">Utilitaire</option>
+                    <option value="">Tous les types</option>
+                    <option value="SUV">SUV</option>
+                    <option value="Berline">Berline</option>
+                    <option value="Coupe">Coupé</option>
+                    <option value="Compacte">Compacte</option>
+                    <option value="Cabriolet">Cabriolet</option>
+                    <option value="Break">Break</option>
+                    <option value="Monospace">Monospace</option>
                   </select>
                   <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                    <svg className="w-5 h-5 text-muted-foreground" fill="currentColor" viewBox="0 0 20 20">
+                    <svg
+                      className="w-5 h-5 text-gray-400"
+                      viewBox="0 0 20 20"
+                      fill="none"
+                      stroke="currentColor"
+                    >
                       <path
-                        fillRule="evenodd"
-                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                        clipRule="evenodd"
+                        d="M7 7l3-3 3 3m0 6l-3 3-3-3"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
                       />
                     </svg>
                   </div>
                 </div>
-                <Button className="h-12 bg-red-600 hover:bg-red-700">
+                <Button type="submit" className="h-12 bg-red-600 hover:bg-red-700">
                   <Search className="mr-2 h-4 w-4" />
                   Rechercher
                 </Button>
-              </div>
+              </form>
             </div>
           </div>
         </div>
