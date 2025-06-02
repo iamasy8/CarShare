@@ -36,8 +36,14 @@ class AuthService {
    */
   async logout(): Promise<void> {
     try {
-      // Try to call the backend logout endpoint
-      await apiClient.post<void>('/auth/logout');
+      // Use the Next.js API route we created that forwards to the backend
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
     } catch (error: any) {
       // If the endpoint doesn't exist or there's any other error, just log it
       // We'll still clear the token client-side

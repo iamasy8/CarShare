@@ -82,6 +82,24 @@ import type { Notification } from "@/lib/api-helpers"
 export default function OwnerDashboard() {
   const { user, logout, isOwner, status } = useAuth()
   const router = useRouter()
+  
+  // Navigation handlers to avoid router.push in render
+  const navigateTo = (path: string) => {
+    // Wrap in setTimeout to ensure it doesn't happen during render
+    setTimeout(() => {
+      router.push(path)
+    }, 0)
+  }
+  
+  // Handle authentication redirects in useEffect
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login")
+    } else if (status === "authenticated" && !isOwner) {
+      router.push("/dashboard")
+    }
+  }, [status, isOwner, router])
+
   const [dashboardData, setDashboardData] = useState<{
     activeListings: number;
     pendingBookings: number;
@@ -289,7 +307,7 @@ export default function OwnerDashboard() {
   
   // Add new car listing
   const handleAddCar = () => {
-    router.push("/owner/listings/new")
+    router.push("/owner/cars/add")
   }
   
   // Add a retry function for the dashboard
@@ -471,7 +489,7 @@ export default function OwnerDashboard() {
                     </p>
                   </CardContent>
                   <CardFooter className="pt-0">
-                    <Button variant="outline" size="sm" className="w-full" onClick={() => router.push("/owner/bookings?filter=pending")}>
+                    <Button variant="outline" size="sm" className="w-full" onClick={() => navigateTo("/owner/bookings?filter=pending")}>
                       <Calendar className="mr-2 h-4 w-4" />
                       Manage Bookings
                     </Button>
@@ -490,7 +508,7 @@ export default function OwnerDashboard() {
                     </p>
                   </CardContent>
                   <CardFooter className="pt-0">
-                    <Button variant="outline" size="sm" className="w-full" onClick={() => router.push("/owner/earnings")}>
+                    <Button variant="outline" size="sm" className="w-full" onClick={() => navigateTo("/owner/earnings")}>
                       <CreditCard className="mr-2 h-4 w-4" />
                       View Earnings
                     </Button>
@@ -539,7 +557,7 @@ export default function OwnerDashboard() {
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Button variant="outline" size="sm" className="w-full" onClick={() => router.push("/owner/bookings")}>
+                  <Button variant="outline" size="sm" className="w-full" onClick={() => navigateTo("/owner/bookings")}>
                     View All Bookings
                   </Button>
                 </CardFooter>
