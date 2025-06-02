@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Slider } from "@/components/ui/slider"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-import { Heart, Search, Filter, Loader2, Bookmark, History } from "lucide-react"
+import { Search, Filter, Loader2, Bookmark, History } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
@@ -16,6 +16,7 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { parseCarFeatures } from "@/lib/utils"
 import { sanitizeImageUrl } from "@/lib/utils"
+import FavoriteButton from "@/components/favorite-button"
 
 // Type definitions
 interface FilterState {
@@ -77,16 +78,16 @@ export default function SearchPage() {
   // Initialize filters from URL params
   const [filters, setFilters] = useState<FilterState>({
     priceRange: [
-      parseInt(searchParams.get("minPrice") || "0"),
-      parseInt(searchParams.get("maxPrice") || "200")
+      parseInt(searchParams?.get("minPrice") || "0"),
+      parseInt(searchParams?.get("maxPrice") || "200")
     ],
-    types: searchParams.get("types")?.split(",") || [],
-    makes: searchParams.get("makes")?.split(",") || [],
-    features: searchParams.get("features")?.split(",") || [],
-    availableOnly: searchParams.get("availableOnly") === "true",
-    sortBy: searchParams.get("sortBy") || "price-asc",
-    searchTerm: searchParams.get("q") || "",
-    page: parseInt(searchParams.get("page") || "1"),
+    types: searchParams?.get("types")?.split(",") || [],
+    makes: searchParams?.get("makes")?.split(",") || [],
+    features: searchParams?.get("features")?.split(",") || [],
+    availableOnly: searchParams?.get("availableOnly") === "true",
+    sortBy: searchParams?.get("sortBy") || "price-asc",
+    searchTerm: searchParams?.get("q") || "",
+    page: parseInt(searchParams?.get("page") || "1"),
     transmission: [],
     fuelType: [],
     minRating: 0,
@@ -705,9 +706,7 @@ export default function SearchPage() {
                         referrerPolicy="no-referrer"
                         crossOrigin="anonymous"
                       />
-                      <button className="absolute top-2 right-2 p-1.5 rounded-full bg-white/80 hover:bg-white text-gray-600 hover:text-red-500">
-                        <Heart className="h-5 w-5" />
-                      </button>
+                      <FavoriteButton carId={car.id} className="absolute top-2 right-2 p-1.5 rounded-full bg-white/80 hover:bg-white text-gray-600 hover:text-red-500" />
                     </div>
                     <div className="flex-1 p-4 md:p-6 flex flex-col">
                       <div className="flex flex-col sm:flex-row justify-between gap-4">

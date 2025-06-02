@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ChevronLeft, Calendar, User, MapPin, Car as CarIcon, Star, Heart, Share2, AlertTriangle, Loader2 } from "lucide-react"
+import { ChevronLeft, Calendar, User, MapPin, Car as CarIcon, Star, Share2, AlertTriangle, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -21,6 +21,7 @@ import React from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { BackButton } from "@/components/ui/back-button"
 import { bookingService } from "@/lib/api/bookings/bookingService"
+import FavoriteButton from "@/components/favorite-button"
 
 // Extended Car type to handle string or array for images and features
 interface ExtendedCar extends Omit<Car, 'images' | 'features'> {
@@ -45,7 +46,6 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
   const [car, setCar] = useState<Car | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
-  const [favoriteLoading, setFavoriteLoading] = useState(false)
   const [checkingAvailability, setCheckingAvailability] = useState(false)
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null)
   const [dateRange, setDateRange] = useState<{
@@ -57,17 +57,7 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
   })
   const [totalPrice, setTotalPrice] = useState(0)
 
-  // Use React Query to check if car is favorited
-  const { 
-    data: isFavorited = false,
-    refetch: refetchFavoriteStatus,
-    isLoading: isFavoriteLoading
-  } = useQuery({
-    queryKey: ['favorite', parseInt(carId)],
-    queryFn: () => carService.isFavorite(parseInt(carId)),
-    enabled: isAuthenticated && !!carId,
-    initialData: false, // Set initial data to false to ensure heart icon shows as not favorited by default
-  })
+  // We'll use the FavoriteButton component instead of manually checking favorite status
 
   // DateRange handler
   const handleDateRangeChange = (range: DateRange | undefined) => {
@@ -192,55 +182,6 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
 
     fetchCar()
   }, [carId])
-
-  // Toggle favorite status
-  const toggleFavorite = async () => {
-    if (!isAuthenticated) {
-      toast({
-        title: "Connexion requise",
-        description: "Veuillez vous connecter pour ajouter ce véhicule à vos favoris.",
-        variant: "destructive",
-      })
-      router.push(`/login?redirect=/cars/${carId}`)
-      return
-    }
-    
-    if (!car) return
-    
-    setFavoriteLoading(true)
-    try {
-      const numericCarId = parseInt(carId)
-      
-      if (isFavorited) {
-        await carService.removeFromFavorites(numericCarId)
-        // Invalidate both the specific car favorite status and the favorites list
-        queryClient.setQueryData(['favorite', numericCarId], false)
-        queryClient.invalidateQueries({ queryKey: ['favorites'] })
-        toast({
-          title: "Retiré des favoris",
-          description: "Ce véhicule a été retiré de vos favoris.",
-        })
-      } else {
-        await carService.addToFavorites(numericCarId)
-        // Update both the specific car favorite status and the favorites list
-        queryClient.setQueryData(['favorite', numericCarId], true)
-        queryClient.invalidateQueries({ queryKey: ['favorites'] })
-        toast({
-          title: "Ajouté aux favoris",
-          description: "Ce véhicule a été ajouté à vos favoris.",
-        })
-      }
-    } catch (err) {
-      console.error("Error toggling favorite:", err)
-      toast({
-        title: "Erreur",
-        description: "Impossible de modifier vos favorites. Veuillez réessayer.",
-        variant: "destructive",
-      })
-    } finally {
-      setFavoriteLoading(false)
-    }
-  }
 
   // Handle booking submission
   const handleBooking = async () => {
@@ -398,17 +339,11 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
                   crossOrigin="anonymous"
                 />
                 <div className="absolute top-4 right-4 flex gap-2">
-                  <button 
-                    className={`p-2 rounded-full ${isFavorited ? 'bg-red-500 text-white' : 'bg-white/80 hover:bg-white text-gray-600 hover:text-red-500'}`}
-                    onClick={toggleFavorite}
-                    disabled={favoriteLoading || isFavoriteLoading}
-                  >
-                    {favoriteLoading || isFavoriteLoading ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : (
-                      <Heart className={`h-5 w-5 ${isFavorited ? 'fill-current' : ''}`} />
-                    )}
-                  </button>
+                  <FavoriteButton 
+                    carId={parseInt(carId)} 
+                    className="h-9 w-9 flex items-center justify-center border rounded-md border-input hover:bg-accent hover:text-accent-foreground" 
+                    iconClassName="h-4 w-4"
+                  />
                   <button className="p-2 rounded-full bg-white/80 hover:bg-white text-gray-600 hover:text-blue-500">
                     <Share2 className="h-5 w-5" />
                   </button>
@@ -596,12 +531,27 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
                   )}
                 </Button>
                 
+                <div className="flex space-x-2 mt-4">
+                  <FavoriteButton 
+                    carId={parseInt(carId)} 
+                    className="h-9 w-9 flex items-center justify-center border rounded-md border-input hover:bg-accent hover:text-accent-foreground" 
+                    iconClassName="h-4 w-4"
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-9 w-9"
+                  >
+                    <Share2 className="h-4 w-4" />
+                  </Button>
+                </div>
+                
                 <p className="text-xs text-gray-500 text-center mt-4">
                   Vous ne serez débité que lorsque le propriétaire acceptera votre demande
                 </p>
               </div>
-                </div>
-              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

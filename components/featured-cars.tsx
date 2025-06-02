@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Heart, Star, Loader2 } from "lucide-react"
+import { Star, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { Car } from "@/lib/api"
 import { carService } from "@/lib/api/cars/carService"
 import { useRealApi, sanitizeImageUrl } from "@/lib/utils"
+import FavoriteButton from "@/components/favorite-button"
 
 export default function FeaturedCars() {
   const [cars, setCars] = useState<Car[]>([])
@@ -115,15 +116,7 @@ export default function FeaturedCars() {
                     referrerPolicy="no-referrer"
                     crossOrigin="anonymous"
                   />
-                  <button
-                    className="absolute top-2 right-2 p-1.5 rounded-full bg-white/80 dark:bg-black/50 hover:bg-white dark:hover:bg-black/70 text-foreground"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      // Add to favorites logic here
-                    }}
-                  >
-                    <Heart className="h-5 w-5" />
-                  </button>
+                  <FavoriteButton carId={car.id} />
                 </div>
                 <div className="flex flex-col p-4 flex-1">
                   <div className="flex justify-between items-start">

@@ -88,10 +88,10 @@ export default function ClientReservationsPage() {
 
   return (
     <RouteProtection requiredRoles={["client", "admin", "superadmin"]}>
-      <div className="container py-10">
-        <h1 className="text-3xl font-bold mb-2">Mes réservations</h1>
-        <p className="text-gray-500 dark:text-gray-400 mb-8">Gérez vos réservations de véhicules</p>
-        
+      <div className="flex justify-center w-full py-10">
+        <div className="w-full max-w-4xl px-6 md:px-8 lg:px-10">
+          <h1 className="text-3xl font-bold mb-2">Mes réservations</h1>
+          <p className="text-gray-500 dark:text-gray-400 mb-8">Gérez vos réservations de véhicules</p>
         {error && (
           <Alert variant="destructive" className="mb-6">
             <AlertCircle className="h-4 w-4 mr-2" />
@@ -166,6 +166,7 @@ export default function ClientReservationsPage() {
             )}
           </>
         )}
+        </div>
       </div>
     </RouteProtection>
   )

@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Switch } from "@/components/ui/switch"
 import { ArrowLeft, Upload, CheckCircle2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { carService } from "@/lib/api"
+import { carService } from "@/lib/api/cars/carService"
 import { useRealApi } from "@/lib/utils"
 import { RouteProtection } from "@/components/route-protection"
 
@@ -133,13 +133,16 @@ export default function AddCarPage() {
           carFormData.append(key, JSON.stringify(value))
         } else {
           carFormData.append(key, String(value))
-      }
+        }
       })
       
       // Add images
       images.forEach((image, index) => {
         carFormData.append(`images[${index}]`, image)
       })
+      
+      // Log what we're sending to help debug
+      console.log("FormData being sent:", Array.from(carFormData.entries()))
       
       // Use the carService to create the car
       if (useRealApi()) {
