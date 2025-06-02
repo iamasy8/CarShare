@@ -253,6 +253,15 @@ export function sanitizeImageUrl(url: string | undefined | null): string {
     sanitized = sanitized.replace(/https:\/+via\.placeholder\.com\/+/, 'https://via.placeholder.com/');
   }
   
+  // Use our proxy for localhost:8000 URLs to avoid CORS issues
+  if (sanitized.includes('localhost:8000/storage/')) {
+    // Extract the path after /storage/
+    const match = sanitized.match(/\/storage\/(.+)$/);
+    if (match && match[1]) {
+      return `http://localhost:8000/image-proxy.php?path=${encodeURIComponent(match[1])}`;
+    }
+  }
+  
   // Check if the URL is valid
   try {
     new URL(sanitized);
