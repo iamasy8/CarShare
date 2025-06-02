@@ -32,7 +32,7 @@ const mockBillingHistory = [
 
 export default function BillingHistoryPage() {
   const { user } = useAuth()
-  const currentPlan = user?.subscription ? subscriptionPlans.find((plan) => plan.id === user.subscription.tier) : null
+  const currentPlan = user?.subscription?.tier ? subscriptionPlans.find((plan) => plan.id === user.subscription?.tier) : null
 
   return (
     <div className="container py-8">
