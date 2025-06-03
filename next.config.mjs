@@ -18,7 +18,7 @@ const nextConfig = {
         headers: [
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self' http://localhost:3000 http://localhost:8000; img-src 'self' data: blob: http://localhost:3000 http://localhost:8000 https://localhost:8000 https://images.unsplash.com https://ui-avatars.com; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; font-src 'self' data:; connect-src 'self' http://localhost:3000 http://localhost:8000 https://*.pusher.com https://*.pusherapp.com wss://*.pusher.com; frame-src 'self'; object-src 'none'"
+            value: "default-src 'self' http://localhost:3000 http://localhost:8000; img-src 'self' data: blob: http://localhost:3000 http://localhost:8000 https://localhost:8000 https://images.unsplash.com https://ui-avatars.com; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; font-src 'self' data:; connect-src 'self' http://localhost:3000 http://localhost:8000 https://*.pusher.com wss://*.pusher.com ws://*.pusher.com https://sockjs-*.pusher.com; frame-src 'self'; object-src 'none'"
           }
         ],
       },

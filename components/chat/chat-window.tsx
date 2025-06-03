@@ -112,6 +112,7 @@ export default function ChatWindow({ conversationId, onBack, className, isMobile
       // Invalidate the conversation query to refresh messages
       queryClient.invalidateQueries({ queryKey: ['conversation', conversationId] })
       queryClient.invalidateQueries({ queryKey: ['conversations'] })
+      setNewMessage("") // Clear the message input after sending
     },
     onError: (error) => {
       console.error('Error sending message:', error)
@@ -160,7 +161,7 @@ export default function ChatWindow({ conversationId, onBack, className, isMobile
     if (isUsingRealApi && isAuthenticated && conversationId && conversationData) {
       // Get unread messages from the other user
       const unreadMessages = conversationData.messages
-        .filter(msg => !msg.read && msg.senderId !== user?.id)
+        .filter(msg => !msg.isRead && msg.senderId !== user?.id)
         .map(msg => msg.id);
       
       // If there are unread messages, mark them as read

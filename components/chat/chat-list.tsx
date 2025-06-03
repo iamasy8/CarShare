@@ -6,13 +6,14 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Search, Plus, Loader2 } from "lucide-react"
 import { cn, useRealApi } from "@/lib/utils"
-import { messageService } from "@/lib/api/messages/messageService"
+import { messageService, type Conversation } from "@/lib/api/messages/messageService"
 import { useAuth } from "@/lib/auth-context"
 import { useQuery } from "@tanstack/react-query"
 import { format, formatDistanceToNow } from "date-fns"
 import { fr } from "date-fns/locale"
 import { listenToPrivateChannel, stopListeningToPrivateChannel } from "@/lib/echo"
 import { useQueryClient } from "@tanstack/react-query"
+import { NewConversationModal } from "./new-conversation-modal"
 
 // Define the type for conversation participant
 interface ConversationUser {
@@ -20,6 +21,19 @@ interface ConversationUser {
   name: string;
   avatar?: string;
   isOnline?: boolean;
+}
+
+// Define the type for our UI conversation format
+interface UIConversation {
+  id: string | number;
+  user: ConversationUser;
+  lastMessage: {
+    text: string;
+    time: string;
+    isRead: boolean;
+    isOwn: boolean;
+  };
+  unreadCount: number;
 }
 
 // Mock data for conversations
@@ -135,15 +149,24 @@ interface ChatListProps {
   className?: string
 }
 
+// Add a function to handle creating a new conversation
+const handleNewConversation = () => {
+  // You can implement this to open a modal or navigate to a new conversation page
+  console.log("Creating a new conversation");
+  // For now, we'll just alert the user
+  alert("Cette fonctionnalité sera bientôt disponible!");
+};
+
 export default function ChatList({ onSelectConversation, selectedConversationId, className }: ChatListProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const { isAuthenticated, user } = useAuth()
   const isUsingRealApi = useRealApi()
   const queryClient = useQueryClient()
+  const [isNewConversationModalOpen, setIsNewConversationModalOpen] = useState(false)
   
   // Fetch conversations from API
   const { 
-    data: apiConversations = [], 
+    data: apiConversations = { conversations: [], totalPages: 1 }, 
     isLoading, 
     isError 
   } = useQuery({
@@ -153,14 +176,14 @@ export default function ChatList({ onSelectConversation, selectedConversationId,
   })
   
   // State to hold the conversations data (either mock or real)
-  const [conversations, setConversations] = useState(mockConversations)
+  const [conversations, setConversations] = useState<UIConversation[]>(mockConversations)
   
   // Process API data when it changes
   useEffect(() => {
     if (isUsingRealApi && isAuthenticated) {
-      if (Array.isArray(apiConversations) && apiConversations.length > 0) {
+      if (apiConversations.conversations && apiConversations.conversations.length > 0) {
         // Transform the API conversations to match our UI format
-        const formattedConversations = apiConversations.map(conv => {
+        const formattedConversations = apiConversations.conversations.map(conv => {
           // Extract the other user from the conversation
           const otherUser = conv.otherParticipant || { id: 0, name: "Utilisateur" } as ConversationUser;
           
@@ -176,7 +199,7 @@ export default function ChatList({ onSelectConversation, selectedConversationId,
               text: conv.lastMessage?.content || "Nouvelle conversation",
               time: formatMessageTime(conv.lastMessage?.createdAt || conv.createdAt),
               isRead: !conv.unreadCount || conv.unreadCount === 0,
-              isOwn: conv.lastMessage?.senderId === otherUser.id,
+              isOwn: conv.lastMessage?.senderId === user?.id,
             },
             unreadCount: conv.unreadCount || 0,
           };
@@ -192,7 +215,7 @@ export default function ChatList({ onSelectConversation, selectedConversationId,
       // In development mode with mock data
       setConversations(mockConversations);
     }
-  }, [apiConversations, isAuthenticated, isUsingRealApi]);
+  }, [apiConversations, isAuthenticated, isUsingRealApi, user]);
 
   // Set up real-time conversation listening
   useEffect(() => {
@@ -241,7 +264,12 @@ export default function ChatList({ onSelectConversation, selectedConversationId,
         ) : isError ? (
           <div className="flex flex-col items-center justify-center h-full p-4 text-center">
             <p className="text-gray-500 dark:text-gray-400 mb-4">Erreur lors du chargement des conversations</p>
-            <Button variant="outline" size="sm" className="gap-1">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-1"
+              onClick={() => setIsNewConversationModalOpen(true)}
+            >
               <Plus className="h-4 w-4" />
               Nouvelle conversation
             </Button>
@@ -255,7 +283,7 @@ export default function ChatList({ onSelectConversation, selectedConversationId,
                   "hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer",
                   selectedConversationId === conversation.id && "bg-gray-100 dark:bg-gray-800",
                 )}
-                onClick={() => onSelectConversation?.(conversation.id)}
+                onClick={() => onSelectConversation?.(typeof conversation.id === 'string' ? parseInt(conversation.id) : conversation.id)}
               >
                 <div className="flex items-start p-4">
                   <div className="relative mr-3">
@@ -298,7 +326,12 @@ export default function ChatList({ onSelectConversation, selectedConversationId,
         ) : (
           <div className="flex flex-col items-center justify-center h-full p-4 text-center">
             <p className="text-gray-500 dark:text-gray-400 mb-4">Aucune conversation trouvée</p>
-            <Button variant="outline" size="sm" className="gap-1">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-1"
+              onClick={() => setIsNewConversationModalOpen(true)}
+            >
               <Plus className="h-4 w-4" />
               Nouvelle conversation
             </Button>
@@ -307,11 +340,20 @@ export default function ChatList({ onSelectConversation, selectedConversationId,
       </div>
 
       <div className="p-4 border-t">
-        <Button className="w-full bg-red-600 hover:bg-red-700 gap-2">
+        <Button 
+          className="w-full bg-red-600 hover:bg-red-700 gap-2"
+          onClick={() => setIsNewConversationModalOpen(true)}
+        >
           <Plus className="h-4 w-4" />
           Nouvelle conversation
         </Button>
       </div>
+      
+      <NewConversationModal
+        open={isNewConversationModalOpen}
+        onClose={() => setIsNewConversationModalOpen(false)}
+        onSuccess={onSelectConversation}
+      />
     </div>
   )
 }

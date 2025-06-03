@@ -43,6 +43,7 @@ export function initEcho() {
               `Bearer ${localStorage.getItem('auth_token')}` : '',
           },
         },
+        enabledTransports: ['ws', 'wss', 'xhr_streaming', 'xhr_polling', 'sockjs'],
       });
 
       console.log('Echo initialized successfully');
