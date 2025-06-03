@@ -138,8 +138,36 @@ export default function OwnerCarsPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedTab, setSelectedTab] = useState("all")
   const [cars, setCars] = useState<CarData[]>(mockCars)
+  const [filteredCars, setFilteredCars] = useState<CarData[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState("")
+
+  // Filter cars based on selected tab and search query
+  useEffect(() => {
+    if (cars.length > 0) {
+      // First filter by search query
+      let filtered = cars
+      if (searchQuery.trim() !== "") {
+        const query = searchQuery.toLowerCase()
+        filtered = cars.filter(car => 
+          car.make.toLowerCase().includes(query) ||
+          car.model.toLowerCase().includes(query) ||
+          car.location.toLowerCase().includes(query)
+        )
+      }
+      
+      // Then filter by status tab
+      if (selectedTab === "all") {
+        setFilteredCars(filtered)
+      } else if (selectedTab === "active") {
+        setFilteredCars(filtered.filter(car => car.status === "approved" || car.status === "active"))
+      } else if (selectedTab === "pending") {
+        setFilteredCars(filtered.filter(car => car.status === "pending"))
+      } else if (selectedTab === "inactive") {
+        setFilteredCars(filtered.filter(car => car.status === "inactive" || car.status === "rejected"))
+      }
+    }
+  }, [cars, selectedTab, searchQuery])
 
   useEffect(() => {
     const fetchCars = async () => {
@@ -168,12 +196,8 @@ export default function OwnerCarsPage() {
     fetchCars()
   }, [])
 
-  // Filter cars based on selected tab and search query
-  const filteredCars = cars
-    .filter(car => {
-      if (selectedTab === "all") return true
-      return car.status === selectedTab
-    })
+  // Filter cars based on search query
+  const filteredCarsBySearch = filteredCars
     .filter(car => {
       if (!searchQuery) return true
       const query = searchQuery.toLowerCase()
@@ -188,13 +212,15 @@ export default function OwnerCarsPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "active":
-        return <Badge className="bg-green-600">Active</Badge>
+      case "approved":
+        return <Badge className="bg-green-500">Actif</Badge>
       case "pending":
-        return <Badge className="bg-yellow-500">En attente</Badge>
+        return <Badge variant="outline" className="text-yellow-600 border-yellow-600">En attente</Badge>
       case "inactive":
-        return <Badge variant="outline" className="text-gray-600 border-gray-600">Inactive</Badge>
+      case "rejected":
+        return <Badge variant="outline" className="text-gray-500 border-gray-500">Inactif</Badge>
       default:
-        return <Badge>Unknown</Badge>
+        return <Badge variant="outline">Inconnu</Badge>
     }
   }
 
@@ -227,8 +253,8 @@ export default function OwnerCarsPage() {
             </div>
           </div>
 
-          <Tabs defaultValue="all" value={selectedTab} onValueChange={setSelectedTab} className="mb-8">
-            <TabsList className="grid grid-cols-4 mb-8">
+          <Tabs defaultValue="all" className="w-full" onValueChange={setSelectedTab}>
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="all">Tous</TabsTrigger>
               <TabsTrigger value="active">Actifs</TabsTrigger>
               <TabsTrigger value="pending">En attente</TabsTrigger>
@@ -237,17 +263,14 @@ export default function OwnerCarsPage() {
 
             <TabsContent value={selectedTab}>
               {isLoading ? (
-                <div className="flex justify-center items-center p-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600"></div>
+                <div className="flex justify-center items-center h-64">
+                  <p>Chargement de vos véhicules...</p>
                 </div>
               ) : error ? (
-                <Card>
-                  <CardContent className="pt-6 text-center">
-                    <p className="text-red-600 mb-4">{error}</p>
-                    <Button onClick={() => window.location.reload()}>Réessayer</Button>
-                  </CardContent>
-                </Card>
-              ) : filteredCars.length === 0 ? (
+                <div className="flex justify-center items-center h-64">
+                  <p className="text-red-500">{error}</p>
+                </div>
+              ) : filteredCarsBySearch.length === 0 ? (
                 <Card>
                   <CardContent className="pt-6 text-center">
                     <Car className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -268,8 +291,8 @@ export default function OwnerCarsPage() {
                   </CardContent>
                 </Card>
               ) : (
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {filteredCars.map((car) => (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredCarsBySearch.map((car) => (
                     <Card key={car.id} className="overflow-hidden">
                       <div className="relative h-48">
                         <Image
@@ -345,7 +368,7 @@ export default function OwnerCarsPage() {
                             </p>
                           </div>
                         </div>
-                        {car.status === "active" && (
+                        {(car.status === "active" || car.status === "approved") && (
                           <div className="flex items-center mt-2">
                             <div className="flex items-center">
                               <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
