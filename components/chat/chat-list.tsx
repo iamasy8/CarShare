@@ -250,7 +250,7 @@ export default function ChatList({ onSelectConversation, selectedConversationId,
           <ul className="divide-y">
             {filteredConversations.map((conversation) => (
               <li
-                key={`conversation-${conversation.id}`}
+                key={`conversation-${conversation.id || Math.random().toString(36).substr(2, 9)}`}
                 className={cn(
                   "hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer",
                   selectedConversationId === conversation.id && "bg-gray-100 dark:bg-gray-800",
