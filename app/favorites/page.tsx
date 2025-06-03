@@ -266,9 +266,9 @@ export default function FavoritesPage() {
                 </Button>
               </div>
             ) : filteredFavorites.length > 0 ? (
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
                 {filteredFavorites.map((favorite) => (
-                  <Card key={favorite.id} className="overflow-hidden">
+                  <Card key={favorite.id} className="overflow-hidden flex flex-col">
                     <div className="relative">
                       <img
                         src={favorite.image || "/placeholder.svg"}
@@ -312,7 +312,7 @@ export default function FavoritesPage() {
                       </div>
                     </CardHeader>
 
-                    <CardContent className="pb-2">
+                    <CardContent className="pb-2 flex-grow">
                       <div className="flex justify-between items-start mb-2">
                         <div>
                           <p className="text-sm text-gray-500 dark:text-gray-400">{favorite.type}</p>
@@ -339,14 +339,14 @@ export default function FavoritesPage() {
                       </div>
                     </CardContent>
 
-                    <CardFooter className="pt-2">
-                      <div className="w-full flex justify-between items-center">
+                    <CardFooter className="pt-4 pb-4">
+                      <div className="w-full flex flex-col gap-3">
                         <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
                           <Calendar className="h-3 w-3 mr-1" />
                           Ajouté le {favorite.addedDate}
                         </div>
-                        <div className="flex gap-2">
-                          <Button asChild size="sm" variant="outline">
+                        <div className="flex gap-2 w-full">
+                          <Button asChild size="sm" variant="outline" className="flex-1 whitespace-nowrap">
                             <Link href={`/cars/${favorite.id}`}>Voir détails</Link>
                           </Button>
                           <CarContactButton
@@ -355,7 +355,7 @@ export default function FavoritesPage() {
                             ownerId={101} // Mock owner ID
                             ownerName="Propriétaire"
                             size="sm"
-                            className="bg-red-600 hover:bg-red-700"
+                            className="bg-red-600 hover:bg-red-700 flex-1 whitespace-nowrap"
                           />
                         </div>
                       </div>
