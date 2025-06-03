@@ -52,8 +52,8 @@ export default function AddCarPage() {
     doors: "5",
     seats: "5",
     transmission: "Automatique",
-    fuelType: "Essence",
-    pricePerDay: "",
+    fuel: "Essence",
+    price_per_day: "50", // Using snake_case to match the backend API's expected field name
     location: "",
     description: "",
     features: {
@@ -293,13 +293,13 @@ export default function AddCarPage() {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="pricePerDay">Prix par jour (€) <span className="text-red-500">*</span></Label>
+                    <Label htmlFor="price_per_day">Prix par jour (€) <span className="text-red-500">*</span></Label>
                     <Input 
-                      id="pricePerDay" 
-                      name="pricePerDay" 
+                      id="price_per_day" 
+                      name="price_per_day" 
                       type="number" 
                       min="1" 
-                      value={formData.pricePerDay} 
+                      value={formData.price_per_day} 
                       onChange={handleInputChange} 
                       placeholder="Ex: 50"
                       required
@@ -367,11 +367,12 @@ export default function AddCarPage() {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="fuelType">Type de carburant</Label>
+                    <Label htmlFor="fuel">Type de carburant <span className="text-red-500">*</span></Label>
                     <Select 
-                      name="fuelType" 
-                      value={formData.fuelType} 
-                      onValueChange={(value) => handleSelectChange("fuelType", value)}
+                      name="fuel" 
+                      value={formData.fuel} 
+                      onValueChange={(value) => handleSelectChange("fuel", value)}
+                      required
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Sélectionner un type" />

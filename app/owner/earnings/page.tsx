@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -216,7 +217,7 @@ export default function EarningsPage() {
               <CardContent>
                 <div className="mb-4">
                   <Button variant="outline" size="sm" asChild>
-                    <a href="/owner/billing-history">View Complete Billing History</a>
+                    <Link href="/owner/billing-history">View Complete Billing History</Link>
                   </Button>
                 </div>
                 <Table>

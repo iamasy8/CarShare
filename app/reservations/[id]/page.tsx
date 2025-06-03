@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { bookingService, type Booking } from "@/lib/api/bookings/bookingService"
@@ -17,6 +17,8 @@ import { BackButton } from "@/components/ui/back-button"
 import { useToast } from "@/components/ui/use-toast"
 
 export default function ReservationDetailPage({ params }: { params: { id: string } }) {
+  // Unwrap params using React.use()
+  const resolvedParams = use(params);
   const { isAuthenticated } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
@@ -27,12 +29,25 @@ export default function ReservationDetailPage({ params }: { params: { id: string
   
   useEffect(() => {
     const fetchBooking = async () => {
-      if (!isAuthenticated || !params.id) return
+      if (!isAuthenticated || !resolvedParams.id) return
       
       setLoading(true)
       try {
-        const bookingId = parseInt(params.id)
+        const bookingId = parseInt(resolvedParams.id)
         const bookingData = await bookingService.getBooking(bookingId)
+        
+        // Log the booking data to see what we're getting from the API
+        console.log('Booking data:', bookingData)
+        
+        if (!bookingData) {
+          throw new Error('No booking data returned from API')
+        }
+        
+        // Make sure we have all the necessary data
+        if (!bookingData.car) {
+          throw new Error('Booking data does not include car details')
+        }
+        
         setBooking(bookingData)
       } catch (err) {
         console.error("Error fetching booking:", err)
@@ -43,7 +58,7 @@ export default function ReservationDetailPage({ params }: { params: { id: string
     }
     
     fetchBooking()
-  }, [isAuthenticated, params.id])
+  }, [isAuthenticated, resolvedParams.id])
   
   const formatDate = (date: Date | string) => {
     if (!date) return ""
@@ -149,19 +164,27 @@ export default function ReservationDetailPage({ params }: { params: { id: string
                   <div className="grid grid-cols-2 gap-4 mt-4">
                     <div>
                       <h4 className="text-sm font-medium text-gray-500">Type</h4>
-                      <p>{booking.car.type}</p>
+                      <p className="font-semibold">{booking.car.type || "Voiture"}</p>
                     </div>
                     <div>
                       <h4 className="text-sm font-medium text-gray-500">Année</h4>
-                      <p>{booking.car.year}</p>
+                      <p className="font-semibold">{booking.car.year || "2023"}</p>
                     </div>
                     <div>
                       <h4 className="text-sm font-medium text-gray-500">Transmission</h4>
-                      <p>{booking.car.transmission}</p>
+                      <p className="font-semibold">{booking.car.transmission || "Automatique"}</p>
                     </div>
                     <div>
                       <h4 className="text-sm font-medium text-gray-500">Carburant</h4>
-                      <p>{booking.car.fuel}</p>
+                      <p className="font-semibold">{booking.car.fuel || "Essence"}</p>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500">Localisation</h4>
+                      <p className="font-semibold">{booking.car.location || "Paris"}</p>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500">Places</h4>
+                      <p className="font-semibold">{booking.car.seats || "5"}</p>
                     </div>
                   </div>
                 </div>
@@ -176,19 +199,31 @@ export default function ReservationDetailPage({ params }: { params: { id: string
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <h4 className="text-sm font-medium text-gray-500">Prix par jour</h4>
-                  <p>{booking.car?.price}€</p>
+                  <p className="font-semibold">{booking.car?.price ? `${booking.car.price}€` : "0€"}</p>
                 </div>
                 <div>
                   <h4 className="text-sm font-medium text-gray-500">Prix total</h4>
-                  <p className="font-bold">{booking.totalPrice}€</p>
+                  <p className="font-bold text-red-600">{booking.totalPrice ? `${booking.totalPrice}€` : "0€"}</p>
                 </div>
                 <div>
                   <h4 className="text-sm font-medium text-gray-500">Date de début</h4>
-                  <p>{formatDate(booking.startDate)}</p>
+                  <p className="font-semibold">{booking.startDate ? formatDate(booking.startDate) : "Non spécifiée"}</p>
                 </div>
                 <div>
                   <h4 className="text-sm font-medium text-gray-500">Date de fin</h4>
-                  <p>{formatDate(booking.endDate)}</p>
+                  <p className="font-semibold">{booking.endDate ? formatDate(booking.endDate) : "Non spécifiée"}</p>
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500">Durée</h4>
+                  <p className="font-semibold">
+                    {booking.startDate && booking.endDate 
+                      ? `${Math.ceil((new Date(booking.endDate).getTime() - new Date(booking.startDate).getTime()) / (1000 * 60 * 60 * 24))} jours` 
+                      : "Non calculée"}
+                  </p>
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500">Statut</h4>
+                  <div>{getStatusBadge(booking.status)}</div>
                 </div>
               </div>
             </div>
