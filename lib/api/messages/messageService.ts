@@ -121,6 +121,15 @@ class MessageService {
   async deleteMessage(messageId: number): Promise<void> {
     return apiClient.delete<void>(`/messages/messages/${messageId}`);
   }
+  
+  /**
+   * Mark messages as read
+   */
+  async markMessagesAsRead(conversationId: number, messageIds: number[]): Promise<void> {
+    return apiClient.post<void>(`/messages/conversations/${conversationId}/read`, {
+      messageIds
+    });
+  }
 }
 
 export const messageService = new MessageService(); 

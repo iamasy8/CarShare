@@ -15,6 +15,7 @@ import { messageService, type Message, type Conversation } from "@/lib/api/messa
 import { useAuth } from "@/lib/auth-context"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
+import { listenToPrivateChannel, stopListeningToPrivateChannel } from "@/lib/echo"
 
 // Mock data for a conversation
 const mockConversation = {
@@ -118,10 +119,57 @@ export default function ChatWindow({ conversationId, onBack, className, isMobile
     }
   })
 
+  // Set up real-time message listening
+  useEffect(() => {
+    if (isUsingRealApi && isAuthenticated && user && user.id) {
+      // Listen to the user's private channel for new messages
+      const channelName = `user.${user.id}`;
+      
+      // Listen for the message.sent event
+      listenToPrivateChannel(channelName, 'message.sent', (data) => {
+        // Check if the message is for the current conversation
+        if (data.conversationId === conversationId) {
+          // Invalidate queries to refresh the messages
+          queryClient.invalidateQueries({ queryKey: ['conversation', conversationId] });
+          queryClient.invalidateQueries({ queryKey: ['conversations'] });
+        }
+      });
+      
+      // Listen for the messages.read event
+      listenToPrivateChannel(channelName, 'messages.read', (data) => {
+        // Invalidate queries to refresh the read status
+        queryClient.invalidateQueries({ queryKey: ['conversation', conversationId] });
+        queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      });
+      
+      // Cleanup function
+      return () => {
+        stopListeningToPrivateChannel(channelName, 'message.sent');
+        stopListeningToPrivateChannel(channelName, 'messages.read');
+      };
+    }
+  }, [isUsingRealApi, isAuthenticated, user, conversationId, queryClient]);
+
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [conversationData])
+
+  // Mark messages as read when viewing conversation
+  useEffect(() => {
+    if (isUsingRealApi && isAuthenticated && conversationId && conversationData) {
+      // Get unread messages from the other user
+      const unreadMessages = conversationData.messages
+        .filter(msg => !msg.read && msg.senderId !== user?.id)
+        .map(msg => msg.id);
+      
+      // If there are unread messages, mark them as read
+      if (unreadMessages.length > 0) {
+        messageService.markMessagesAsRead(conversationId, unreadMessages)
+          .catch(error => console.error('Error marking messages as read:', error));
+      }
+    }
+  }, [isUsingRealApi, isAuthenticated, conversationId, conversationData, user]);
 
   // If no conversation is selected, show empty state
   if (!conversationId) {
@@ -177,7 +225,12 @@ export default function ChatWindow({ conversationId, onBack, className, isMobile
       ...conversationData.conversation,
       messages: conversationData.messages || []
     }
-    otherUser = conversationData.conversation.otherParticipant || { id: 0, name: "Utilisateur" }
+    otherUser = {
+      id: conversationData.conversation.otherParticipant?.id || 0,
+      name: conversationData.conversation.otherParticipant?.name || "Utilisateur",
+      avatar: conversationData.conversation.otherParticipant?.avatar || "/placeholder.svg",
+      isOnline: false
+    }
   } else {
     currentConversation = mockConversation
   }

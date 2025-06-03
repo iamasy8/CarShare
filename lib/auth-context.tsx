@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from "
 import { useRouter } from "next/navigation"
 import type { BillingPeriod, SubscriptionTier } from "./subscription-plans"
 import { authService } from "./api/auth/authService"
+import { initEcho, cleanupEcho } from './echo'
 
 // Define user types
 export type UserRole = "client" | "owner" | "admin" | "superadmin" | null
@@ -249,11 +250,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const response = await authService.login(email, password)
       setUser(response.user)
       setStatus("authenticated")
+      
+      // Initialize Echo for real-time messaging
+      initEcho();
+      
       return response.user
-    } catch (error: any) {
-      console.error("Login failed:", error)
-      setError(error?.message || "Login failed. Please check your credentials.")
-      throw error
+    } catch (err: any) {
+      console.error("Login failed:", err)
+      setError(err?.message || "Failed to login. Please check your credentials.")
+      throw err
     } finally {
       setLoading(prev => ({ ...prev, login: false }))
     }
@@ -286,14 +291,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Logout function
   const logout = async () => {
     try {
-      await authService.logout()
-    } catch (error) {
-      console.error("Logout error:", error)
-    } finally {
-      // Always clear user state regardless of API response
+      // Clean up Echo connection
+      cleanupEcho();
+      
+      // Call the API to logout
+      if (authService.hasToken()) {
+        await authService.logout()
+      }
+      
+      // Clear user data
       setUser(null)
       setStatus("unauthenticated")
-      router.push("/login")
+      
+      // Redirect to home page
+      router.push("/")
+    } catch (err) {
+      console.error("Logout failed:", err)
     }
   }
 

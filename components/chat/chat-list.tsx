@@ -11,6 +11,8 @@ import { useAuth } from "@/lib/auth-context"
 import { useQuery } from "@tanstack/react-query"
 import { format, formatDistanceToNow } from "date-fns"
 import { fr } from "date-fns/locale"
+import { listenToPrivateChannel, stopListeningToPrivateChannel } from "@/lib/echo"
+import { useQueryClient } from "@tanstack/react-query"
 
 // Define the type for conversation participant
 interface ConversationUser {
@@ -135,8 +137,9 @@ interface ChatListProps {
 
 export default function ChatList({ onSelectConversation, selectedConversationId, className }: ChatListProps) {
   const [searchQuery, setSearchQuery] = useState("")
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user } = useAuth()
   const isUsingRealApi = useRealApi()
+  const queryClient = useQueryClient()
   
   // Fetch conversations from API
   const { 
@@ -190,6 +193,25 @@ export default function ChatList({ onSelectConversation, selectedConversationId,
       setConversations(mockConversations);
     }
   }, [apiConversations, isAuthenticated, isUsingRealApi]);
+
+  // Set up real-time conversation listening
+  useEffect(() => {
+    if (isUsingRealApi && isAuthenticated && user && user.id) {
+      // Listen to the user's private channel for conversation updates
+      const channelName = `user.${user.id}`;
+      
+      // Listen for the message.sent event to update conversations list
+      listenToPrivateChannel(channelName, 'message.sent', () => {
+        // Invalidate conversations query to refresh the list
+        queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      });
+      
+      // Cleanup function
+      return () => {
+        stopListeningToPrivateChannel(channelName, 'message.sent');
+      };
+    }
+  }, [isUsingRealApi, isAuthenticated, user, queryClient]);
 
   const filteredConversations = conversations.filter((conversation) =>
     conversation.user.name.toLowerCase().includes(searchQuery.toLowerCase()),

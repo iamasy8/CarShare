@@ -9,6 +9,7 @@ import { AuthProvider } from "@/lib/auth-context"
 import { ReactQueryProvider } from "@/hooks/useReactQuerySetup"
 import { MobileNavigation } from "@/components/ui/mobile-navigation"
 import { ClientLayoutWrapper } from "@/components/client-layout-wrapper"
+import { EchoInitializer } from "@/components/echo-initializer"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -35,6 +36,7 @@ export default function RootLayout({
                   <main className="flex-1">{children}</main>
                   <Footer />
                   <MobileNavigation />
+                  <EchoInitializer />
                 </div>
                 </ClientLayoutWrapper>
               </RoleThemeProvider>
