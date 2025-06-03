@@ -343,38 +343,40 @@ export default function CarAvailabilityPage() {
                   onSelect={handleDateSelect}
                   className="rounded-md border"
                   modifiers={{
+                    // Unavailable dates (marked by owner as unavailable)
                     unavailable: unavailableDates,
-                    booked: unavailableDates.filter(date => {
-                      // Check if date is in a booking
-                      return bookings.some(booking => {
-                        const startDate = new Date(booking.start_date)
-                        const endDate = new Date(booking.end_date)
-                        return date >= startDate && date <= endDate
-                      })
-                    })
+                    // Booked dates (reserved by customers)
+                    booked: bookings.map(booking => {
+                      const startDate = new Date(booking.start_date);
+                      const endDate = new Date(booking.end_date);
+                      const dates = [];
+                      let currentDate = new Date(startDate);
+                      
+                      while (currentDate <= endDate) {
+                        dates.push(new Date(currentDate));
+                        currentDate.setDate(currentDate.getDate() + 1);
+                      }
+                      
+                      return dates;
+                    }).flat(),
+                    // Selected dates (currently being modified)
+                    selected: selectedDates
                   }}
-                  modifiersStyles={{
-                    unavailable: { 
-                      backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                      color: '#ef4444',
-                      textDecoration: 'line-through'
-                    },
-                    booked: {
-                      backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                      color: '#3b82f6',
-                      fontWeight: 'bold'
-                    }
+                  modifiersClassNames={{
+                    unavailable: "bg-red-100 text-red-600 line-through",
+                    booked: "bg-blue-100 text-blue-600 font-bold",
+                    selected: "bg-purple-100 text-purple-600 font-bold"
                   }}
                   disabled={(date) => {
                     // Disable dates that are in confirmed bookings
                     return bookings.some(booking => {
                       if (booking.status === 'confirmed') {
-                        const startDate = new Date(booking.start_date)
-                        const endDate = new Date(booking.end_date)
-                        return date >= startDate && date <= endDate
+                        const startDate = new Date(booking.start_date);
+                        const endDate = new Date(booking.end_date);
+                        return date >= startDate && date <= endDate;
                       }
-                      return false
-                    })
+                      return false;
+                    });
                   }}
                 />
               </div>
