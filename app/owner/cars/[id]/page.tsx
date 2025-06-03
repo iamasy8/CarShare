@@ -467,7 +467,7 @@ export default function CarDetailPage() {
                   </Link>
                 </Button>
                 <Button asChild variant="outline" className="w-full">
-                  <Link href={`/owner/cars/${car.id}/calendar`}>
+                  <Link href={`/owner/cars/${car.id}/availability`}>
                     <Calendar className="mr-2 h-4 w-4" />
                     Gérer la disponibilité
                   </Link>
@@ -531,6 +531,8 @@ export default function CarDetailPage() {
                 </div>
               </CardContent>
             </Card>
+            
+
           </div>
         </div>
       </div>

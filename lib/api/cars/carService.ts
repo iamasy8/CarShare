@@ -157,6 +157,46 @@ class CarService {
       params: { limit },
     });
   }
+  
+  /**
+   * Get bookings for a specific car
+   */
+  async getCarBookings(carId: number): Promise<any[]> {
+    // Use mock data instead of real API call since endpoint doesn't exist yet
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve([
+          {
+            id: 1,
+            start_date: new Date(2025, 5, 10).toISOString(),
+            end_date: new Date(2025, 5, 12).toISOString(),
+            status: "confirmed",
+            renter_name: "Jean Dupont"
+          },
+          {
+            id: 2,
+            start_date: new Date(2025, 5, 20).toISOString(),
+            end_date: new Date(2025, 5, 21).toISOString(),
+            status: "confirmed",
+            renter_name: "Marie Martin"
+          }
+        ]);
+      }, 500);
+    });
+  }
+  
+  /**
+   * Update car availability dates
+   */
+  async updateCarAvailability(carId: number, dates: string[]): Promise<void> {
+    // Use mock implementation instead of real API call since endpoint doesn't exist yet
+    return new Promise((resolve) => {
+      console.log(`Mock: Updating availability for car ${carId} with dates:`, dates);
+      setTimeout(() => {
+        resolve();
+      }, 1000);
+    });
+  }
 }
 
-export const carService = new CarService(); 
+export const carService = new CarService();
