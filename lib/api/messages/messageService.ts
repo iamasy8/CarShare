@@ -12,8 +12,8 @@ export interface Message {
   content: string;
   isRead: boolean;
   bookingId?: number;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: string | Date;
+  updatedAt: string | Date;
   sender?: User;
   receiver?: User;
 }
@@ -24,8 +24,8 @@ export interface Conversation {
   otherParticipant: User;
   lastMessage?: Message;
   unreadCount: number;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: string | Date;
+  updatedAt: string | Date;
 }
 
 export interface ConversationResponse {

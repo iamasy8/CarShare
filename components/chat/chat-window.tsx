@@ -79,7 +79,7 @@ const mockConversation = {
 }
 
 interface ChatWindowProps {
-  conversationId?: number
+  conversationId?: number | string
   onBack?: () => void
   className?: string
   isMobile?: boolean
@@ -106,7 +106,7 @@ export default function ChatWindow({ conversationId, onBack, className, isMobile
 
   // Mutation for sending a message
   const sendMessageMutation = useMutation({
-    mutationFn: ({ conversationId, content }: { conversationId: number, content: string }) => 
+    mutationFn: ({ conversationId, content }: { conversationId: number | string, content: string }) => 
       messageService.sendMessage(conversationId, content),
     onSuccess: () => {
       // Invalidate the conversation query to refresh messages
@@ -263,25 +263,45 @@ export default function ChatWindow({ conversationId, onBack, className, isMobile
   // Process messages for display
   let messages = []
   if (isUsingRealApi && conversationData) {
-    messages = conversationData.messages.map((msg: Message) => ({
-      id: msg.id,
-      text: msg.content,
-      time: new Date(msg.createdAt),
-      isOwn: msg.senderId === currentUser.id
-    }))
+    messages = conversationData.messages.map((msg: Message) => {
+      // Make sure we have a valid date
+      let messageTime;
+      try {
+        messageTime = new Date(msg.createdAt);
+        // Check if the date is valid
+        if (isNaN(messageTime.getTime())) {
+          messageTime = new Date(); // Fallback to current date if invalid
+        }
+      } catch (e) {
+        console.error("Invalid date format:", msg.createdAt);
+        messageTime = new Date(); // Fallback to current date
+      }
+      
+      return {
+        id: msg.id,
+        text: msg.content,
+        time: messageTime,
+        isOwn: msg.senderId === currentUser.id
+      };
+    });
   } else {
-    messages = mockConversation.messages
+    messages = mockConversation.messages;
   }
 
   // Group messages by date
   const groupedMessages: { [key: string]: any[] } = {}
   messages.forEach((message) => {
-    const date = format(message.time, "P", { locale: fr })
-    if (!groupedMessages[date]) {
-      groupedMessages[date] = []
+    try {
+      const date = format(message.time, "P", { locale: fr });
+      if (!groupedMessages[date]) {
+        groupedMessages[date] = [];
+      }
+      groupedMessages[date].push(message);
+    } catch (e) {
+      console.error("Error formatting date:", e);
+      // Skip this message if we can't format its date
     }
-    groupedMessages[date].push(message)
-  })
+  });
 
   return (
     <div className={cn("flex flex-col h-full", className)}>
@@ -367,7 +387,14 @@ export default function ChatWindow({ conversationId, onBack, className, isMobile
                         message.isOwn ? "text-red-100" : "text-gray-500 dark:text-gray-400",
                       )}
                     >
-                      {format(message.time, "p", { locale: fr })}
+                      {(() => {
+                        try {
+                          return format(message.time, "p", { locale: fr });
+                        } catch (e) {
+                          console.error("Error formatting time:", e);
+                          return ""; // Return empty string if formatting fails
+                        }
+                      })()}
                     </span>
                   </div>
                 </div>

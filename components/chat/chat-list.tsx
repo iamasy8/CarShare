@@ -283,7 +283,12 @@ export default function ChatList({ onSelectConversation, selectedConversationId,
                   "hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer",
                   selectedConversationId === conversation.id && "bg-gray-100 dark:bg-gray-800",
                 )}
-                onClick={() => onSelectConversation?.(typeof conversation.id === 'string' ? parseInt(conversation.id) : conversation.id)}
+                onClick={() => {
+                  console.log("Selected conversation:", conversation);
+                  if (conversation.id) {
+                    onSelectConversation?.(typeof conversation.id === 'string' ? parseInt(conversation.id) : conversation.id);
+                  }
+                }}
               >
                 <div className="flex items-start p-4">
                   <div className="relative mr-3">

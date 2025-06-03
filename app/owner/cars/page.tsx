@@ -137,7 +137,7 @@ export default function OwnerCarsPage() {
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedTab, setSelectedTab] = useState("all")
-  const [cars, setCars] = useState<CarData[]>(mockCars)
+  const [cars, setCars] = useState<CarData[]>([])
   const [filteredCars, setFilteredCars] = useState<CarData[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState("")
@@ -181,13 +181,13 @@ export default function OwnerCarsPage() {
           const mappedCars = response.map(mapApiCarToCarData)
           setCars(mappedCars)
         } else {
-          // Simulate API delay
-          await new Promise(resolve => setTimeout(resolve, 800))
-          setCars(mockCars)
+          // Don't use mock data anymore, just set empty array
+          setCars([])
         }
       } catch (err: any) {
         console.error("Error fetching cars:", err)
         setError(err.message || "Failed to load cars")
+        setCars([]) // Set empty array on error
       } finally {
         setIsLoading(false)
       }
