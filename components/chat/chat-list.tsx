@@ -144,8 +144,8 @@ const formatMessageTime = (date: Date | string) => {
 };
 
 interface ChatListProps {
-  onSelectConversation?: (conversationId: number) => void
-  selectedConversationId?: number
+  onSelectConversation?: (conversationId: string | number) => void
+  selectedConversationId?: string | number
   className?: string
 }
 
@@ -185,14 +185,20 @@ export default function ChatList({ onSelectConversation, selectedConversationId,
         // Transform the API conversations to match our UI format
         const formattedConversations = apiConversations.conversations.map(conv => {
           // Extract the other user from the conversation
-          const otherUser = conv.otherParticipant || { id: 0, name: "Utilisateur" } as ConversationUser;
+          const otherUser = conv.otherParticipant || { id: 0, name: "Utilisateur" };
+          
+          // Use a local placeholder instead of external URLs for avatars
+          let avatarUrl = "/placeholder.svg?height=40&width=40";
+          if (otherUser.avatar && !otherUser.avatar.includes('randomuser.me')) {
+            avatarUrl = otherUser.avatar;
+          }
           
           return {
             id: conv.id,
             user: {
               id: otherUser.id,
               name: otherUser.name || "Utilisateur",
-              avatar: otherUser.avatar || "/placeholder.svg?height=40&width=40",
+              avatar: avatarUrl,
               isOnline: false, // We don't have online status from API
             },
             lastMessage: {
@@ -205,7 +211,6 @@ export default function ChatList({ onSelectConversation, selectedConversationId,
           };
         });
         
-        console.log("Formatted conversations:", formattedConversations);
         setConversations(formattedConversations);
       } else {
         // If no conversations, show empty array
@@ -215,26 +220,51 @@ export default function ChatList({ onSelectConversation, selectedConversationId,
       // In development mode with mock data
       setConversations(mockConversations);
     }
-  }, [apiConversations, isAuthenticated, isUsingRealApi, user]);
+  }, [apiConversations, isAuthenticated, isUsingRealApi, user?.id]);
 
-  // Set up real-time conversation listening
+  // Set up real-time conversation listening with better error handling
   useEffect(() => {
     if (isUsingRealApi && isAuthenticated && user && user.id) {
       // Listen to the user's private channel for conversation updates
       const channelName = `user.${user.id}`;
       
-      // Listen for the message.sent event to update conversations list
-      listenToPrivateChannel(channelName, 'message.sent', () => {
-        // Invalidate conversations query to refresh the list
-        queryClient.invalidateQueries({ queryKey: ['conversations'] });
-      });
-      
-      // Cleanup function
-      return () => {
-        stopListeningToPrivateChannel(channelName, 'message.sent');
-      };
+      try {
+        // Listen for the message.sent event to update conversations list
+        listenToPrivateChannel(channelName, 'message.sent', (data) => {
+          console.log('Received message.sent event:', data);
+          // Invalidate conversations query to refresh the list
+          queryClient.invalidateQueries({ queryKey: ['conversations'] });
+        });
+        
+        // Also listen for messages.read event to update unread counts
+        listenToPrivateChannel(channelName, 'messages.read', (data) => {
+          console.log('Received messages.read event:', data);
+          // Invalidate conversations query to refresh the list
+          queryClient.invalidateQueries({ queryKey: ['conversations'] });
+        });
+        
+        // Cleanup function
+        return () => {
+          stopListeningToPrivateChannel(channelName, 'message.sent');
+          stopListeningToPrivateChannel(channelName, 'messages.read');
+        };
+      } catch (error) {
+        console.error('Error setting up real-time listeners:', error);
+      }
     }
-  }, [isUsingRealApi, isAuthenticated, user, queryClient]);
+  }, [isUsingRealApi, isAuthenticated, user?.id, queryClient]);
+
+  // Add a polling mechanism as a fallback for real-time updates
+  useEffect(() => {
+    if (isUsingRealApi && isAuthenticated) {
+      // Set up polling every 15 seconds to refresh conversations
+      const interval = setInterval(() => {
+        queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      }, 15000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [isUsingRealApi, isAuthenticated, queryClient]);
 
   const filteredConversations = conversations.filter((conversation) =>
     conversation.user.name.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -286,15 +316,17 @@ export default function ChatList({ onSelectConversation, selectedConversationId,
                 onClick={() => {
                   console.log("Selected conversation:", conversation);
                   if (conversation.id) {
-                    onSelectConversation?.(typeof conversation.id === 'string' ? parseInt(conversation.id) : conversation.id);
+                    onSelectConversation?.(conversation.id as any);
                   }
                 }}
               >
                 <div className="flex items-start p-4">
                   <div className="relative mr-3">
-                    <Avatar>
-                      <AvatarImage src={conversation.user.avatar || "/placeholder.svg"} alt={conversation.user.name} />
-                      <AvatarFallback>{conversation.user.name.charAt(0)}</AvatarFallback>
+                    <Avatar className="h-10 w-10 mr-3">
+                      <AvatarImage src={conversation.user.avatar} alt={conversation.user.name} />
+                      <AvatarFallback>
+                        {conversation.user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                      </AvatarFallback>
                     </Avatar>
                     {conversation.user.isOnline && (
                       <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-900"></span>

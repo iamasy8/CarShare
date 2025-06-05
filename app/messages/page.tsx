@@ -7,7 +7,7 @@ import { useMediaQuery } from "@/hooks/use-media-query"
 import { RouteProtection } from "@/components/route-protection"
 
 export default function MessagesPage() {
-  const [selectedConversationId, setSelectedConversationId] = useState<number | undefined>(undefined)
+  const [selectedConversationId, setSelectedConversationId] = useState<string | number | undefined>(undefined)
   const isMobile = useMediaQuery("(max-width: 768px)")
   const [showChatList, setShowChatList] = useState(true)
 
@@ -20,7 +20,8 @@ export default function MessagesPage() {
     }
   }, [selectedConversationId, isMobile])
 
-  const handleSelectConversation = (conversationId: number) => {
+  const handleSelectConversation = (conversationId: string | number) => {
+    console.log("Selected conversation ID:", conversationId);
     setSelectedConversationId(conversationId)
   }
 
@@ -46,7 +47,7 @@ export default function MessagesPage() {
                 {(showChatList || !isMobile) && (
                   <ChatList
                     onSelectConversation={handleSelectConversation}
-                    selectedConversationId={selectedConversationId}
+                    selectedConversationId={selectedConversationId as any}
                     className={isMobile ? "w-full" : "w-1/3"}
                   />
                 )}

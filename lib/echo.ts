@@ -3,10 +3,16 @@ import Pusher from 'pusher-js';
 
 // Initialize Echo only on the client side
 let echo: Echo<any> | null = null;
+// Keep track of active channel subscriptions to avoid duplicates
+const activeChannels: Record<string, boolean> = {};
+// Track initialization attempts to prevent multiple tries
+let initializationAttempted = false;
 
 // Initialize Pusher and Laravel Echo
 export function initEcho() {
-  if (typeof window !== 'undefined' && !echo) {
+  if (typeof window !== 'undefined' && !echo && !initializationAttempted) {
+    initializationAttempted = true;
+    
     try {
       // Log environment variables for debugging (remove in production)
       console.log('Initializing Echo with:', {
@@ -30,6 +36,13 @@ export function initEcho() {
       // Enable Pusher logging for debugging
       Pusher.logToConsole = true;
 
+      // Get auth token from localStorage
+      const authToken = localStorage.getItem('auth_token');
+      
+      if (!authToken) {
+        console.warn('No auth token found for Echo initialization');
+      }
+
       echo = new Echo({
         broadcaster: 'pusher',
         key: process.env.NEXT_PUBLIC_PUSHER_APP_KEY,
@@ -39,11 +52,27 @@ export function initEcho() {
         auth: {
           headers: {
             Accept: 'application/json',
-            Authorization: typeof window !== 'undefined' ? 
-              `Bearer ${localStorage.getItem('auth_token')}` : '',
+            Authorization: authToken ? `Bearer ${authToken}` : '',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
           },
         },
         enabledTransports: ['ws', 'wss', 'xhr_streaming', 'xhr_polling', 'sockjs'],
+        // Add connection handlers
+        connectionTimeout: 10000, // 10 seconds
+        enableLogging: true,
+      });
+      
+      // Add connection event listeners
+      echo.connector.pusher.connection.bind('connected', () => {
+        console.log('Pusher connection established');
+      });
+      
+      echo.connector.pusher.connection.bind('disconnected', () => {
+        console.log('Pusher disconnected');
+      });
+      
+      echo.connector.pusher.connection.bind('error', (err: any) => {
+        console.error('Pusher connection error:', err);
       });
 
       console.log('Echo initialized successfully');
@@ -54,10 +83,23 @@ export function initEcho() {
   return echo;
 }
 
-// Get the Echo instance
+// Get the Echo instance, reinitialize if token changed
 export function getEcho() {
-  if (!echo && typeof window !== 'undefined') {
-    return initEcho();
+  if (typeof window !== 'undefined') {
+    // Check if token has changed
+    const currentToken = localStorage.getItem('auth_token');
+    const echoToken = echo?.options?.auth?.headers?.Authorization?.replace('Bearer ', '');
+    
+    if (currentToken && echoToken && currentToken !== echoToken) {
+      console.log('Auth token changed, reinitializing Echo');
+      cleanupEcho();
+      initializationAttempted = false;
+      return initEcho();
+    }
+    
+    if (!echo) {
+      return initEcho();
+    }
   }
   return echo;
 }
@@ -66,6 +108,20 @@ export function getEcho() {
 export function cleanupEcho() {
   if (echo) {
     try {
+      // Clear all active channels
+      Object.keys(activeChannels).forEach(channelKey => {
+        const [channelName, event] = channelKey.split('|');
+        try {
+          echo?.private(channelName).stopListening(event);
+        } catch (e) {
+          console.warn(`Failed to stop listening to ${channelName}:${event}`, e);
+        }
+      });
+      
+      // Reset active channels
+      Object.keys(activeChannels).forEach(key => delete activeChannels[key]);
+      
+      // Disconnect Echo
       echo.disconnect();
       echo = null;
       console.log('Echo connection cleaned up');
@@ -79,8 +135,24 @@ export function cleanupEcho() {
 export function listenToPrivateChannel(channelName: string, event: string, callback: (data: any) => void) {
   const echoInstance = getEcho();
   if (echoInstance) {
-    console.log(`Listening to channel: ${channelName}, event: ${event}`);
-    return echoInstance.private(channelName).listen(event, callback);
+    try {
+      // Create a unique key for this channel+event combination
+      const channelKey = `${channelName}|${event}`;
+      
+      // Check if we're already listening to this channel+event
+      if (activeChannels[channelKey]) {
+        console.log(`Already listening to channel: ${channelName}, event: ${event}`);
+        // Stop listening first to avoid duplicate handlers
+        echoInstance.private(channelName).stopListening(event);
+      }
+      
+      // Start listening and mark as active
+      console.log(`Listening to channel: ${channelName}, event: ${event}`);
+      echoInstance.private(channelName).listen(event, callback);
+      activeChannels[channelKey] = true;
+    } catch (error) {
+      console.error(`Error listening to channel ${channelName}, event ${event}:`, error);
+    }
   }
 }
 
@@ -88,7 +160,16 @@ export function listenToPrivateChannel(channelName: string, event: string, callb
 export function stopListeningToPrivateChannel(channelName: string, event: string) {
   const echoInstance = getEcho();
   if (echoInstance) {
-    console.log(`Stopped listening to channel: ${channelName}, event: ${event}`);
-    echoInstance.private(channelName).stopListening(event);
+    try {
+      const channelKey = `${channelName}|${event}`;
+      
+      if (activeChannels[channelKey]) {
+        console.log(`Stopped listening to channel: ${channelName}, event: ${event}`);
+        echoInstance.private(channelName).stopListening(event);
+        delete activeChannels[channelKey];
+      }
+    } catch (error) {
+      console.error(`Error stopping listener on channel ${channelName}, event ${event}:`, error);
+    }
   }
 } 

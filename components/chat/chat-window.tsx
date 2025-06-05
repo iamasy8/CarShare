@@ -92,6 +92,9 @@ export default function ChatWindow({ conversationId, onBack, className, isMobile
   const isUsingRealApi = useRealApi()
   const queryClient = useQueryClient()
 
+  // Add a ref to track which messages have been marked as read
+  const markedAsReadRef = useRef<Record<number, boolean>>({})
+
   // Fetch conversation data from API if conversationId is provided
   const {
     data: conversationData,
@@ -100,31 +103,115 @@ export default function ChatWindow({ conversationId, onBack, className, isMobile
     error
   } = useQuery({
     queryKey: ['conversation', conversationId],
-    queryFn: () => messageService.getConversation(conversationId!),
+    queryFn: async () => {
+      try {
+        // Check if the conversation ID is valid
+        if (!conversationId) {
+          throw new Error('Invalid conversation ID');
+        }
+        
+        // Convert the conversationId to string to ensure we can check its format
+        const convIdStr = String(conversationId);
+        
+        // Handle different conversation ID formats
+        if (convIdStr.startsWith('booking_')) {
+          // Extract the booking ID from the conversation ID
+          const bookingId = convIdStr.split('_')[1];
+          if (!bookingId) {
+            throw new Error('Invalid booking conversation ID');
+          }
+          
+          // Fetch booking messages instead
+          const bookingMessages = await messageService.getBookingMessages(Number(bookingId));
+          
+          // Convert booking messages to conversation format
+          return {
+            conversation: {
+              id: convIdStr,
+              participantIds: [user?.id || 0, bookingMessages.otherUser?.id || 0],
+              otherParticipant: bookingMessages.otherUser,
+              lastMessage: bookingMessages.messages[bookingMessages.messages.length - 1],
+              unreadCount: 0,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            },
+            messages: bookingMessages.messages,
+            totalPages: 1
+          };
+        } else {
+          // Regular conversation
+          return messageService.getConversation(conversationId);
+        }
+      } catch (error) {
+        console.error('Error fetching conversation:', error);
+        throw error;
+      }
+    },
     enabled: isUsingRealApi && isAuthenticated && !!conversationId,
   })
 
   // Mutation for sending a message
   const sendMessageMutation = useMutation({
-    mutationFn: ({ conversationId, content }: { conversationId: number | string, content: string }) => 
-      messageService.sendMessage(conversationId, content),
-    onSuccess: () => {
-      // Invalidate the conversation query to refresh messages
-      queryClient.invalidateQueries({ queryKey: ['conversation', conversationId] })
-      queryClient.invalidateQueries({ queryKey: ['conversations'] })
-      setNewMessage("") // Clear the message input after sending
+    mutationFn: async ({ conversationId, content }: { conversationId: number | string, content: string }) => {
+      const convIdStr = String(conversationId);
+      
+      // Handle different conversation ID formats
+      if (convIdStr.startsWith('booking_')) {
+        // Extract the booking ID from the conversation ID
+        const bookingId = convIdStr.split('_')[1];
+        if (!bookingId) {
+          throw new Error('Invalid booking conversation ID');
+        }
+        
+        // Send message to booking conversation
+        return messageService.sendBookingMessage(Number(bookingId), content);
+      } else {
+        // Regular conversation
+        return messageService.sendMessage(conversationId, content);
+      }
+    },
+    onSuccess: (data) => {
+      // Clear the message input first
+      setNewMessage("");
+      
+      // Add the new message to the local state immediately for better UX
+      if (conversationData && data) {
+        // Create a new message object from the response data
+        const newMessage = data;
+        
+        // Update the conversation data with the new message
+        const updatedMessages = [...conversationData.messages, newMessage];
+        
+        // Use queryClient.setQueryData to update the cache without triggering a refetch
+        queryClient.setQueryData(['conversation', conversationId], {
+          ...conversationData,
+          messages: updatedMessages,
+        });
+      }
+      
+      // Then invalidate queries to refresh data from the server
+      // Use a small delay to ensure the UI is responsive first
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['conversations'] });
+        queryClient.invalidateQueries({ queryKey: ['conversation', conversationId] });
+      }, 300);
     },
     onError: (error) => {
-      console.error('Error sending message:', error)
-      toast.error("Impossible d'envoyer le message")
+      console.error('Error sending message:', error);
+      toast.error("Impossible d'envoyer le message. Veuillez réessayer.");
     }
   })
 
-  // Set up real-time message listening
+  // Fix the real-time message listening with proper cleanup
   useEffect(() => {
     if (isUsingRealApi && isAuthenticated && user && user.id) {
-      // Listen to the user's private channel for new messages
+      // First, make sure we clean up any existing listeners
       const channelName = `user.${user.id}`;
+      stopListeningToPrivateChannel(channelName, 'message.sent');
+      stopListeningToPrivateChannel(channelName, 'messages.read');
+      
+      // Then set up new listeners
+      console.log(`Setting up new listeners for conversation ${conversationId}`);
       
       // Listen for the message.sent event
       listenToPrivateChannel(channelName, 'message.sent', (data) => {
@@ -145,32 +232,72 @@ export default function ChatWindow({ conversationId, onBack, className, isMobile
       
       // Cleanup function
       return () => {
+        console.log(`Cleaning up listeners for conversation ${conversationId}`);
         stopListeningToPrivateChannel(channelName, 'message.sent');
         stopListeningToPrivateChannel(channelName, 'messages.read');
       };
     }
-  }, [isUsingRealApi, isAuthenticated, user, conversationId, queryClient]);
+  }, [isUsingRealApi, isAuthenticated, user?.id, conversationId, queryClient]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [conversationData])
 
-  // Mark messages as read when viewing conversation
+  // Fix the mark messages as read functionality to prevent loops
   useEffect(() => {
     if (isUsingRealApi && isAuthenticated && conversationId && conversationData) {
-      // Get unread messages from the other user
+      // Get unread messages from the other user that haven't been marked yet
       const unreadMessages = conversationData.messages
-        .filter(msg => !msg.isRead && msg.senderId !== user?.id)
+        .filter(msg => {
+          // Only include messages that:
+          // 1. Are not read
+          // 2. Are from the other user
+          // 3. Haven't been marked as read in this session
+          const shouldMark = !msg.isRead && 
+                            msg.senderId !== user?.id && 
+                            !markedAsReadRef.current[msg.id];
+          
+          if (shouldMark) {
+            // Mark this message as "being processed" to prevent duplicate requests
+            markedAsReadRef.current[msg.id] = true;
+          }
+          
+          return shouldMark;
+        })
         .map(msg => msg.id);
       
       // If there are unread messages, mark them as read
       if (unreadMessages.length > 0) {
-        messageService.markMessagesAsRead(conversationId, unreadMessages)
-          .catch(error => console.error('Error marking messages as read:', error));
+        try {
+          console.log(`Marking ${unreadMessages.length} messages as read for conversation ${conversationId}`);
+          console.log('Message IDs:', unreadMessages);
+          
+          // Use a safer approach without waiting for the promise
+          messageService.markMessagesAsRead(conversationId, unreadMessages)
+            .then((response) => {
+              console.log(`Marked messages as read:`, response);
+              // Only invalidate the conversations list, not the current conversation
+              // to prevent an infinite loop
+              queryClient.invalidateQueries({ queryKey: ['conversations'] });
+            })
+            .catch(error => {
+              console.error('Error marking messages as read:', error);
+              // If there was an error, remove the messages from the "being processed" list
+              unreadMessages.forEach(id => {
+                delete markedAsReadRef.current[id];
+              });
+            });
+        } catch (error) {
+          console.error('Error in marking messages as read:', error);
+          // If there was an error, remove the messages from the "being processed" list
+          unreadMessages.forEach(id => {
+            delete markedAsReadRef.current[id];
+          });
+        }
       }
     }
-  }, [isUsingRealApi, isAuthenticated, conversationId, conversationData, user]);
+  }, [isUsingRealApi, isAuthenticated, conversationId, conversationData?.messages, user?.id, queryClient]);
 
   // If no conversation is selected, show empty state
   if (!conversationId) {
@@ -226,10 +353,18 @@ export default function ChatWindow({ conversationId, onBack, className, isMobile
       ...conversationData.conversation,
       messages: conversationData.messages || []
     }
+    
+    // Use a local placeholder instead of external URLs for avatars
+    let avatarUrl = "/placeholder.svg";
+    if (conversationData.conversation.otherParticipant?.avatar && 
+        !conversationData.conversation.otherParticipant.avatar.includes('randomuser.me')) {
+      avatarUrl = conversationData.conversation.otherParticipant.avatar;
+    }
+    
     otherUser = {
       id: conversationData.conversation.otherParticipant?.id || 0,
       name: conversationData.conversation.otherParticipant?.name || "Utilisateur",
-      avatar: conversationData.conversation.otherParticipant?.avatar || "/placeholder.svg",
+      avatar: avatarUrl,
       isOnline: false
     }
   } else {

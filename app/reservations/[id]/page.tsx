@@ -15,6 +15,8 @@ import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 import { BackButton } from "@/components/ui/back-button"
 import { useToast } from "@/components/ui/use-toast"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { BookingMessages } from "@/components/booking-messages"
 
 export default function ReservationDetailPage({ params }: { params: { id: string } }) {
   // Unwrap params using React.use()
@@ -134,155 +136,189 @@ export default function ReservationDetailPage({ params }: { params: { id: string
       <div className="container py-10">
         <BackButton className="mb-6" onClick={() => router.push("/reservations")} />
         
-        <Card className="mb-6">
-          <CardHeader>
-            <div className="flex justify-between items-start">
-              <div>
-                <CardTitle className="text-2xl">Réservation #{booking.id}</CardTitle>
-                <CardDescription className="flex items-center mt-1">
-                  <Calendar className="h-4 w-4 mr-1" />
-                  {formatDate(booking.startDate)} - {formatDate(booking.endDate)}
-                </CardDescription>
-              </div>
-              {getStatusBadge(booking.status)}
-            </div>
-          </CardHeader>
+        <Tabs defaultValue="details" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="details">Détails</TabsTrigger>
+            <TabsTrigger value="messages">Messages</TabsTrigger>
+            <TabsTrigger value="payment">Paiement</TabsTrigger>
+          </TabsList>
           
-          <CardContent className="space-y-6">
-            {/* Car details */}
-            {booking.car && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="aspect-[4/3] bg-gray-100 rounded-md overflow-hidden">
-                  <img 
-                    src={(booking.car.images && booking.car.images[0]) || "/placeholder.svg"} 
-                    alt={booking.car.title} 
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <h3 className="text-xl font-bold">{booking.car.title}</h3>
-                  <div className="grid grid-cols-2 gap-4 mt-4">
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-500">Type</h4>
-                      <p className="font-semibold">{booking.car.type || "Voiture"}</p>
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-500">Année</h4>
-                      <p className="font-semibold">{booking.car.year || "2023"}</p>
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-500">Transmission</h4>
-                      <p className="font-semibold">{booking.car.transmission || "Automatique"}</p>
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-500">Carburant</h4>
-                      <p className="font-semibold">{booking.car.fuel || "Essence"}</p>
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-500">Localisation</h4>
-                      <p className="font-semibold">{booking.car.location || "Paris"}</p>
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-500">Places</h4>
-                      <p className="font-semibold">{booking.car.seats || "5"}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            <Separator />
-            
-            {/* Booking details */}
-            <div>
-              <h3 className="font-medium mb-4">Détails de la réservation</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500">Prix par jour</h4>
-                  <p className="font-semibold">{booking.car?.price ? `${booking.car.price}€` : "0€"}</p>
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500">Prix total</h4>
-                  <p className="font-bold text-red-600">{booking.totalPrice ? `${booking.totalPrice}€` : "0€"}</p>
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500">Date de début</h4>
-                  <p className="font-semibold">{booking.startDate ? formatDate(booking.startDate) : "Non spécifiée"}</p>
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500">Date de fin</h4>
-                  <p className="font-semibold">{booking.endDate ? formatDate(booking.endDate) : "Non spécifiée"}</p>
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500">Durée</h4>
-                  <p className="font-semibold">
-                    {booking.startDate && booking.endDate 
-                      ? `${Math.ceil((new Date(booking.endDate).getTime() - new Date(booking.startDate).getTime()) / (1000 * 60 * 60 * 24))} jours` 
-                      : "Non calculée"}
-                  </p>
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500">Statut</h4>
-                  <div>{getStatusBadge(booking.status)}</div>
-                </div>
-              </div>
-            </div>
-            
-            <Separator />
-            
-            {/* Owner details */}
-            {booking.car?.owner && (
-              <div>
-                <h3 className="font-medium mb-4">Propriétaire</h3>
-                <div className="flex items-center">
-                  <div className="w-12 h-12 rounded-full bg-gray-200 overflow-hidden mr-4">
-                    <img 
-                      src={booking.car.owner.avatar || "https://ui-avatars.com/api/?name=" + encodeURIComponent(booking.car.owner.name)} 
-                      alt={booking.car.owner.name} 
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
+          {/* Details tab content */}
+          <TabsContent value="details">
+            <Card className="mb-6">
+              <CardHeader>
+                <div className="flex justify-between items-start">
                   <div>
-                    <p className="font-medium">{booking.car.owner.name}</p>
-                    <div className="flex space-x-2 mt-2">
-                      <Button size="sm" variant="outline" className="flex items-center">
-                        <MessageSquare className="h-4 w-4 mr-2" />
-                        Message
-                      </Button>
-                      <Button size="sm" variant="outline" className="flex items-center">
-                        <Phone className="h-4 w-4 mr-2" />
-                        Appeler
-                      </Button>
+                    <CardTitle className="text-2xl">Réservation #{booking.id}</CardTitle>
+                    <CardDescription className="flex items-center mt-1">
+                      <Calendar className="h-4 w-4 mr-1" />
+                      {formatDate(booking.startDate)} - {formatDate(booking.endDate)}
+                    </CardDescription>
+                  </div>
+                  {getStatusBadge(booking.status)}
+                </div>
+              </CardHeader>
+              
+              <CardContent className="space-y-6">
+                {/* Car details */}
+                {booking.car && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="aspect-[4/3] bg-gray-100 rounded-md overflow-hidden">
+                      <img 
+                        src={(booking.car.images && booking.car.images[0]) || "/placeholder.svg"} 
+                        alt={booking.car.title} 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <h3 className="text-xl font-bold">{booking.car.title}</h3>
+                      <div className="grid grid-cols-2 gap-4 mt-4">
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-500">Type</h4>
+                          <p className="font-semibold">{booking.car.type || "Voiture"}</p>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-500">Année</h4>
+                          <p className="font-semibold">{booking.car.year || "2023"}</p>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-500">Transmission</h4>
+                          <p className="font-semibold">{booking.car.transmission || "Automatique"}</p>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-500">Carburant</h4>
+                          <p className="font-semibold">{booking.car.fuel || "Essence"}</p>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-500">Localisation</h4>
+                          <p className="font-semibold">{booking.car.location || "Paris"}</p>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-500">Places</h4>
+                          <p className="font-semibold">{booking.car.seats || "5"}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                <Separator />
+                
+                {/* Booking details */}
+                <div>
+                  <h3 className="font-medium mb-4">Détails de la réservation</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500">Prix par jour</h4>
+                      <p className="font-semibold">{booking.car?.price ? `${booking.car.price}€` : "0€"}</p>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500">Prix total</h4>
+                      <p className="font-bold text-red-600">{booking.totalPrice ? `${booking.totalPrice}€` : "0€"}</p>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500">Date de début</h4>
+                      <p className="font-semibold">{booking.startDate ? formatDate(booking.startDate) : "Non spécifiée"}</p>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500">Date de fin</h4>
+                      <p className="font-semibold">{booking.endDate ? formatDate(booking.endDate) : "Non spécifiée"}</p>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500">Durée</h4>
+                      <p className="font-semibold">
+                        {booking.startDate && booking.endDate 
+                          ? `${Math.ceil((new Date(booking.endDate).getTime() - new Date(booking.startDate).getTime()) / (1000 * 60 * 60 * 24))} jours` 
+                          : "Non calculée"}
+                      </p>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500">Statut</h4>
+                      <div>{getStatusBadge(booking.status)}</div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
-            
-            {/* Message */}
-            {booking.message && (
-              <>
+                
                 <Separator />
-                <div>
-                  <h3 className="font-medium mb-2">Votre message</h3>
-                  <p className="text-gray-600 bg-gray-50 p-4 rounded-md dark:bg-gray-800">{booking.message}</p>
-                </div>
-              </>
-            )}
-          </CardContent>
+                
+                {/* Owner details */}
+                {booking.car?.owner && (
+                  <div>
+                    <h3 className="font-medium mb-4">Propriétaire</h3>
+                    <div className="flex items-center">
+                      <div className="w-12 h-12 rounded-full bg-gray-200 overflow-hidden mr-4">
+                        <img 
+                          src={booking.car.owner.avatar || "https://ui-avatars.com/api/?name=" + encodeURIComponent(booking.car.owner.name)} 
+                          alt={booking.car.owner.name} 
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div>
+                        <p className="font-medium">{booking.car.owner.name}</p>
+                        <div className="flex space-x-2 mt-2">
+                          <Button size="sm" variant="outline" className="flex items-center">
+                            <MessageSquare className="h-4 w-4 mr-2" />
+                            Message
+                          </Button>
+                          <Button size="sm" variant="outline" className="flex items-center">
+                            <Phone className="h-4 w-4 mr-2" />
+                            Appeler
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Message */}
+                {booking.message && (
+                  <>
+                    <Separator />
+                    <div>
+                      <h3 className="font-medium mb-2">Votre message</h3>
+                      <p className="text-gray-600 bg-gray-50 p-4 rounded-md dark:bg-gray-800">{booking.message}</p>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+              
+              <CardFooter className="flex justify-end space-x-2">
+                {booking.status === 'pending' && (
+                  <Button 
+                    variant="destructive"
+                    onClick={handleCancelBooking}
+                    disabled={cancelLoading}
+                  >
+                    {cancelLoading ? "Annulation..." : "Annuler la réservation"}
+                  </Button>
+                )}
+              </CardFooter>
+            </Card>
+          </TabsContent>
           
-          <CardFooter className="flex justify-end space-x-2">
-            {booking.status === 'pending' && (
-              <Button 
-                variant="destructive"
-                onClick={handleCancelBooking}
-                disabled={cancelLoading}
-              >
-                {cancelLoading ? "Annulation..." : "Annuler la réservation"}
-              </Button>
-            )}
-          </CardFooter>
-        </Card>
+          {/* Messages tab content */}
+          <TabsContent value="messages">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <MessageSquare className="mr-2 h-5 w-5" />
+                  Messages
+                </CardTitle>
+                <CardDescription>
+                  Communiquez avec {booking.car?.owner ? "le locataire" : "le propriétaire"} concernant cette réservation
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="h-[500px]">
+                <BookingMessages bookingId={parseInt(resolvedParams.id)} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          {/* Payment tab content */}
+          <TabsContent value="payment">
+            {/* Existing payment content */}
+          </TabsContent>
+        </Tabs>
       </div>
     </RouteProtection>
   )

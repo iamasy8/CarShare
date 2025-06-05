@@ -22,6 +22,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { BackButton } from "@/components/ui/back-button"
 import { bookingService } from "@/lib/api/bookings/bookingService"
 import FavoriteButton from "@/components/favorite-button"
+import { CarInquiryButton } from "@/components/car-inquiry-button"
 
 // Extended Car type to handle string or array for images and features
 interface ExtendedCar extends Omit<Car, 'images' | 'features'> {
@@ -489,47 +490,67 @@ export default function CarDetailsPage({ params }: { params: { id: string } }) {
               <div className="p-6">
                 <h2 className="text-lg font-semibold mb-4">Réserver cette voiture</h2>
                 
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Dates de réservation</label>
-                  <DatePickerWithRange dateRange={dateRange} onDateRangeChange={handleDateRangeChange} />
-                </div>
-
-                {dateRange.from && dateRange.to && (
-                  <div className="mb-6">
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-500">
-                        {car.price}€ x {calculateDays(dateRange.from, dateRange.to)} jours
-                      </span>
-                      <span className="font-medium">{totalPrice}€</span>
-                  </div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-500">Frais de service</span>
-                      <span className="font-medium">{Math.round(totalPrice * 0.1)}€</span>
-                  </div>
-                    <Separator className="my-3" />
-                    <div className="flex justify-between">
-                      <span className="font-medium">Total</span>
-                      <span className="font-bold">{totalPrice + Math.round(totalPrice * 0.1)}€</span>
-                  </div>
-                  </div>
-                )}
-                
-                <Button 
-                  className="w-full bg-red-600 hover:bg-red-700" 
-                  disabled={!dateRange.from || !dateRange.to || checkingAvailability || isAvailable === false}
-                  onClick={handleBooking}
-                >
-                  {checkingAvailability ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Vérification...
-                    </>
-                  ) : isAvailable === false ? (
-                    "Non disponible"
-                  ) : (
-                    "Réserver maintenant"
+                <div className="flex flex-col gap-4">
+                  <DatePickerWithRange
+                    dateRange={dateRange}
+                    onDateRangeChange={handleDateRangeChange}
+                    className="w-full"
+                  />
+                  
+                  {dateRange.from && dateRange.to && (
+                    <div className="flex flex-col gap-2">
+                      <div className="flex justify-between items-center">
+                        <span>Prix par jour:</span>
+                        <span>{car?.price}€</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span>Nombre de jours:</span>
+                        <span>{calculateDays(dateRange.from, dateRange.to)}</span>
+                      </div>
+                      <Separator />
+                      <div className="flex justify-between items-center font-bold">
+                        <span>Total:</span>
+                        <span>{totalPrice}€</span>
+                      </div>
+                    </div>
                   )}
-                </Button>
+                  
+                  {checkingAvailability && (
+                    <div className="flex items-center justify-center py-2">
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <span>Vérification de la disponibilité...</span>
+                    </div>
+                  )}
+                  
+                  {isAvailable === false && (
+                    <Alert variant="destructive">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        Ce véhicule n'est pas disponible aux dates sélectionnées.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  
+                  <Button
+                    onClick={handleBooking}
+                    disabled={
+                      !dateRange.from ||
+                      !dateRange.to ||
+                      isAvailable === false ||
+                      checkingAvailability
+                    }
+                    className="w-full"
+                  >
+                    Réserver maintenant
+                  </Button>
+                  
+                  <CarInquiryButton 
+                    carId={parseInt(carId)}
+                    carTitle={car ? `${car.make} ${car.model} ${car.year}` : ''}
+                    ownerId={car?.ownerId || 0}
+                    className="w-full"
+                  />
+                </div>
                 
                 <div className="flex space-x-2 mt-4">
                   <FavoriteButton 

@@ -83,9 +83,26 @@ class MessageService {
    * Mark messages as read in a conversation
    */
   async markMessagesAsRead(conversationId: string | number, messageIds: number[]): Promise<{ message: string }> {
-    return apiClient.post<{ message: string }>(`/messages/conversations/${conversationId}/read`, {
-      messageIds,
-    });
+    // Check if messageIds is empty to avoid API errors
+    if (!messageIds || messageIds.length === 0) {
+      console.log('No messages to mark as read');
+      return { message: 'No messages to mark as read' };
+    }
+    
+    console.log(`Marking messages as read for conversation ${conversationId}:`, messageIds);
+    
+    try {
+      // Make sure we're using the correct field name expected by the backend
+      const response = await apiClient.post<{ message: string }>(`/messages/conversations/${conversationId}/read`, {
+        messageIds: messageIds,
+      });
+      console.log('Mark as read response:', response);
+      return response;
+    } catch (error) {
+      console.error('Error marking messages as read:', error);
+      // Return a resolved promise instead of throwing to prevent UI errors
+      return { message: 'Failed to mark messages as read' };
+    }
   }
 
   /**
@@ -105,8 +122,14 @@ class MessageService {
   /**
    * Send a message about a specific car (creates a conversation if needed)
    */
-  async sendCarInquiry(carId: number, message: string): Promise<Conversation> {
-    return apiClient.post<Conversation>('/messages/car-inquiry', {
+  async sendCarInquiry(carId: number, message: string): Promise<{
+    message: string;
+    conversation: Conversation;
+  }> {
+    return apiClient.post<{
+      message: string;
+      conversation: Conversation;
+    }>('/messages/car-inquiry', {
       carId,
       message,
     });
@@ -115,15 +138,29 @@ class MessageService {
   /**
    * Get messages related to a specific booking
    */
-  async getBookingMessages(bookingId: number): Promise<Message[]> {
-    return apiClient.get<Message[]>(`/messages/bookings/${bookingId}`);
+  async getBookingMessages(bookingId: number): Promise<{
+    messages: Message[];
+    booking: any;
+    otherUser: User;
+  }> {
+    return apiClient.get<{
+      messages: Message[];
+      booking: any;
+      otherUser: User;
+    }>(`/messages/bookings/${bookingId}`);
   }
   
   /**
    * Send a message related to a specific booking
    */
-  async sendBookingMessage(bookingId: number, content: string): Promise<Message> {
-    return apiClient.post<Message>(`/messages/bookings/${bookingId}`, {
+  async sendBookingMessage(bookingId: number, content: string): Promise<{
+    message: string;
+    data: Message;
+  }> {
+    return apiClient.post<{
+      message: string;
+      data: Message;
+    }>(`/messages/bookings/${bookingId}`, {
       content,
     });
   }
