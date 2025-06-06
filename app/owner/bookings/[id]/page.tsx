@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { ArrowLeft, Car, Calendar, MapPin, User, Clock, CreditCard, MessageCircle, CheckCircle2, X, AlertCircle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { bookingService, messageService, Booking as ApiBooking } from "@/lib/api"
+import { bookingService, Booking as ApiBooking } from "@/lib/api"
 import { useRealApi } from "@/lib/utils"
 import React from "react"
 import { BackButton } from "@/components/ui/back-button"
@@ -210,35 +210,7 @@ export default function BookingDetails({ params }: { params: { id: string } }) {
     }
   }
   
-  // Send message
-  const handleSendMessage = async () => {
-    if (!message.trim()) return
-    
-    setActionLoading("message")
-    setError("")
-    
-    try {
-      if (useRealApi()) {
-        // In production, use the actual API
-        await messageService.sendMessage({
-          recipientId: booking.client.id,
-          content: message,
-          carId: booking.car.id
-        })
-      } else {
-        // For development, simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000))
-      }
-      
-      setMessage("")
-      setSuccess("Message sent successfully")
-    } catch (err: any) {
-      console.error("Error sending message:", err)
-      setError(err.response?.data?.message || "Failed to send message. Please try again.")
-    } finally {
-      setActionLoading("")
-    }
-  }
+  // Message functionality removed
   
   // Redirect if not authenticated or not owner
   if (status === "unauthenticated") {
@@ -419,17 +391,13 @@ export default function BookingDetails({ params }: { params: { id: string } }) {
                   />
                   <div className="flex justify-end">
                     <Button 
-                      onClick={handleSendMessage} 
+                      onClick={() => setSuccess("Messaging functionality is temporarily unavailable.")}
                       disabled={!message.trim() || !!actionLoading}
                     >
-                      {actionLoading === "message" ? (
-                        "Sending..."
-                      ) : (
-                        <>
-                          <MessageCircle className="mr-2 h-4 w-4" />
-                          Send Message
-                        </>
-                      )}
+                      <>
+                        <MessageCircle className="mr-2 h-4 w-4" />
+                        Send Message
+                      </>
                     </Button>
                   </div>
                 </div>

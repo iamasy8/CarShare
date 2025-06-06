@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { messageService } from "@/lib/api/messages/messageService";
 import { useToast } from "@/components/ui/use-toast";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -34,7 +33,7 @@ export function CarInquiryButton({ carId, carTitle, ownerId, className }: CarInq
     if (!isAuthenticated) {
       toast({
         title: "Connexion requise",
-        description: "Veuillez vous connecter pour envoyer un message au propriétaire.",
+        description: "Veuillez vous connecter pour contacter le propriétaire.",
         variant: "destructive",
       });
       router.push(`/login?redirect=/cars/${carId}`);
@@ -53,11 +52,11 @@ export function CarInquiryButton({ carId, carTitle, ownerId, className }: CarInq
     setIsSending(true);
     
     try {
-      const response = await messageService.sendCarInquiry(carId, message);
-      
+      // Message functionality has been removed
       toast({
-        title: "Message envoyé",
-        description: "Votre message a été envoyé au propriétaire.",
+        title: "Fonctionnalité non disponible",
+        description: "La messagerie est temporairement indisponible.",
+        variant: "destructive",
       });
       
       // Close the dialog
@@ -65,14 +64,11 @@ export function CarInquiryButton({ carId, carTitle, ownerId, className }: CarInq
       
       // Reset the message
       setMessage("");
-      
-      // Redirect to the conversation
-      router.push(`/messages/${response.conversation.id}`);
     } catch (error) {
-      console.error("Error sending car inquiry:", error);
+      console.error("Error:", error);
       toast({
         title: "Erreur",
-        description: "Une erreur s'est produite lors de l'envoi du message. Veuillez réessayer.",
+        description: "Une erreur s'est produite. Veuillez réessayer.",
         variant: "destructive",
       });
     } finally {

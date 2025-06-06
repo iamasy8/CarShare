@@ -60,6 +60,7 @@ interface AuthContextType {
     register: boolean
     updateSubscription: boolean
   }
+  isLoading: boolean
   error: string | null
   login: (email: string, password: string) => Promise<User>
   register: (userData: RegisterUserData, role: UserRole) => Promise<User>
@@ -88,6 +89,7 @@ const AuthContext = createContext<AuthContextType>({
     register: false,
     updateSubscription: false
   },
+  isLoading: false,
   error: null,
   login: async () => ({ id: 0, name: "", email: "", role: "client", avatar: "" }),
   register: async () => ({ id: 0, name: "", email: "", role: "client", avatar: "" }),
@@ -450,30 +452,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const isOwner = isAuthenticated && user?.role === "owner"
   const isClient = isAuthenticated && user?.role === "client"
 
+  // Context value to expose to consumers
+  const value = {
+    user,
+    status,
+    loading,
+    isLoading: status === "loading",
+    error,
+    login,
+    register,
+    logout,
+    updateSubscription,
+    clearError,
+    isAuthenticated: status === "authenticated" && user !== null,
+    isAdmin: status === "authenticated" && (user?.role === "admin" || user?.role === "superadmin"),
+    isSuperAdmin: status === "authenticated" && user?.role === "superadmin",
+    isOwner: status === "authenticated" && user?.role === "owner",
+    isClient: status === "authenticated" && user?.role === "client",
+    hasPermission,
+    logAdminAction,
+    extendSession,
+    checkSessionExpiry,
+    updateProfile,
+    setMockUser
+  }
+
   return (
     <AuthContext.Provider
-      value={{
-        user,
-        status,
-        loading,
-        error,
-        login,
-        register,
-        logout,
-        updateSubscription,
-        clearError,
-        isAuthenticated,
-        isAdmin,
-        isSuperAdmin,
-        isOwner,
-        isClient,
-        hasPermission,
-        logAdminAction,
-        extendSession,
-        checkSessionExpiry,
-        updateProfile,
-        setMockUser
-      }}
+      value={value}
     >
       {children}
     </AuthContext.Provider>

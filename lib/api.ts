@@ -214,26 +214,4 @@ export const subscriptionService = {
     const response = await api.get<ApiResponse<any[]>>("/subscriptions/billing-history");
     return response.data.data;
   }
-};
-
-// Message services
-export const messageService = {
-  sendMessage: async (data: {
-    recipientId: number;
-    content: string;
-    carId?: number;
-  }): Promise<any> => {
-    const response = await api.post<ApiResponse<any>>("/messages", data);
-    return response.data.data;
-  },
-  
-  getConversations: async (): Promise<any[]> => {
-    const response = await api.get<ApiResponse<any[]>>("/messages/conversations");
-    return response.data.data;
-  },
-  
-  getMessages: async (conversationId: number): Promise<any[]> => {
-    const response = await api.get<ApiResponse<any[]>>(`/messages/conversations/${conversationId}`);
-    return response.data.data;
-  }
 }; 

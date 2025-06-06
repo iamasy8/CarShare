@@ -1,70 +1,35 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import ChatList from "@/components/chat/chat-list"
-import ChatWindow from "@/components/chat/chat-window"
-import { useMediaQuery } from "@/hooks/use-media-query"
-import { RouteProtection } from "@/components/route-protection"
+import { useEffect } from "react"
+import { useMessages } from "@/components/providers/message-provider"
+import ChatSidebar from "@/components/chat/chat-sidebar"
+import ChatMessages from "@/components/chat/chat-messages"
+import { useAuth } from "@/lib/auth-context"
+import { redirect } from "next/navigation"
 
 export default function MessagesPage() {
-  const [selectedConversationId, setSelectedConversationId] = useState<string | number | undefined>(undefined)
-  const isMobile = useMediaQuery("(max-width: 768px)")
-  const [showChatList, setShowChatList] = useState(true)
+  const { user, isLoading: authLoading } = useAuth()
+  const { loadConversations } = useMessages()
 
-  // On mobile, when a conversation is selected, hide the chat list
   useEffect(() => {
-    if (isMobile && selectedConversationId) {
-      setShowChatList(false)
-    } else if (!isMobile) {
-      setShowChatList(true)
+    if (user) {
+      loadConversations()
     }
-  }, [selectedConversationId, isMobile])
+  }, [user, loadConversations])
 
-  const handleSelectConversation = (conversationId: string | number) => {
-    console.log("Selected conversation ID:", conversationId);
-    setSelectedConversationId(conversationId)
-  }
-
-  const handleBack = () => {
-    setShowChatList(true)
+  // Redirect if not authenticated
+  if (!authLoading && !user) {
+    redirect("/login?redirect=/messages")
   }
 
   return (
-    <RouteProtection>
-      <div className="min-h-screen bg-white dark:bg-gray-950">
-        <div className="container px-0 md:px-6 mx-auto">
-          <div className="flex flex-col">
-            <div className="py-6 px-4 md:px-0">
-              <h1 className="text-2xl font-bold">Messages</h1>
-              <p className="text-gray-500 dark:text-gray-400">
-                Gérez vos conversations avec les propriétaires et les locataires
-              </p>
-            </div>
-
-            <div className="bg-white dark:bg-gray-900 border rounded-lg overflow-hidden h-[calc(100vh-200px)]">
-              <div className="flex h-full">
-                {/* On mobile, conditionally show either chat list or chat window */}
-                {(showChatList || !isMobile) && (
-                  <ChatList
-                    onSelectConversation={handleSelectConversation}
-                    selectedConversationId={selectedConversationId as any}
-                    className={isMobile ? "w-full" : "w-1/3"}
-                  />
-                )}
-
-                {(!showChatList || !isMobile) && (
-                  <ChatWindow
-                    conversationId={selectedConversationId}
-                    onBack={handleBack}
-                    className={isMobile ? "w-full" : "w-2/3"}
-                    isMobile={isMobile}
-                  />
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+    <div className="flex h-[calc(100vh-160px)] flex-col md:flex-row">
+      <div className="w-full md:w-1/3 border-r dark:border-gray-700">
+        <ChatSidebar />
       </div>
-    </RouteProtection>
+      <div className="w-full md:w-2/3 flex flex-col">
+        <ChatMessages />
+      </div>
+    </div>
   )
 }

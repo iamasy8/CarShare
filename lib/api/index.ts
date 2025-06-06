@@ -10,9 +10,6 @@ export * from './cars/carService';
 // Export booking service
 export * from './bookings/bookingService';
 
-// Export message service
-export * from './messages/messageService';
-
 // Export user service
 export * from './users/userService';
 
