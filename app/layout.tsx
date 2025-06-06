@@ -10,6 +10,7 @@ import { ReactQueryProvider } from "@/hooks/useReactQuerySetup"
 import { MobileNavigation } from "@/components/ui/mobile-navigation"
 import { ClientLayoutWrapper } from "@/components/client-layout-wrapper"
 import { EchoInitializer } from "@/components/echo-initializer"
+import { MessageProvider } from "@/components/providers/message-provider"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -30,15 +31,17 @@ export default function RootLayout({
           <AuthProvider>
             <ThemeProvider>
               <RoleThemeProvider>
-                <ClientLayoutWrapper>
-                <div className="flex flex-col min-h-screen">
-                  <Header />
-                  <main className="flex-1">{children}</main>
-                  <Footer />
-                  <MobileNavigation />
-                  <EchoInitializer />
-                </div>
-                </ClientLayoutWrapper>
+                <MessageProvider>
+                  <ClientLayoutWrapper>
+                    <div className="flex flex-col min-h-screen">
+                      <Header />
+                      <main className="flex-1">{children}</main>
+                      <Footer />
+                      <MobileNavigation />
+                      <EchoInitializer />
+                    </div>
+                  </ClientLayoutWrapper>
+                </MessageProvider>
               </RoleThemeProvider>
             </ThemeProvider>
           </AuthProvider>

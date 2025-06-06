@@ -148,7 +148,18 @@ export function listenToPrivateChannel(channelName: string, event: string, callb
       
       // Start listening and mark as active
       console.log(`Listening to channel: ${channelName}, event: ${event}`);
-      echoInstance.private(channelName).listen(event, callback);
+      
+      // Add a wrapper around the callback to provide better logging
+      const wrappedCallback = (data: any) => {
+        console.log(`Received event on ${channelName}:${event}`, data);
+        try {
+          callback(data);
+        } catch (error) {
+          console.error(`Error in callback for ${channelName}:${event}`, error);
+        }
+      };
+      
+      echoInstance.private(channelName).listen(event, wrappedCallback);
       activeChannels[channelKey] = true;
     } catch (error) {
       console.error(`Error listening to channel ${channelName}, event ${event}:`, error);

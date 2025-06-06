@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Search, Plus, Loader2 } from "lucide-react"
 import { cn, useRealApi } from "@/lib/utils"
-import { messageService, type Conversation } from "@/lib/api/messages/messageService"
+import { messageService } from "@/lib/api/messages/messageService"
+import { convertToUIConversations } from "@/lib/api/messages/messageUtils"
 import { useAuth } from "@/lib/auth-context"
 import { useQuery } from "@tanstack/react-query"
 import { format, formatDistanceToNow } from "date-fns"
@@ -14,111 +15,59 @@ import { fr } from "date-fns/locale"
 import { listenToPrivateChannel, stopListeningToPrivateChannel } from "@/lib/echo"
 import { useQueryClient } from "@tanstack/react-query"
 import { NewConversationModal } from "./new-conversation-modal"
+import type { UIConversation } from "@/lib/api/messages/types"
 
-// Define the type for conversation participant
-interface ConversationUser {
-  id: number;
-  name: string;
-  avatar?: string;
-  isOnline?: boolean;
-}
-
-// Define the type for our UI conversation format
-interface UIConversation {
-  id: string | number;
-  user: ConversationUser;
-  lastMessage: {
-    text: string;
-    time: string;
-    isRead: boolean;
-    isOwn: boolean;
-  };
-  unreadCount: number;
-}
-
-// Mock data for conversations
-const mockConversations = [
+// Mock conversations for testing
+const mockConversations: UIConversation[] = [
   {
     id: 1,
     user: {
       id: 101,
       name: "Marie Lefèvre",
-      avatar: "/placeholder.svg?height=40&width=40",
+      avatar: "/placeholder.svg",
       isOnline: true,
     },
     lastMessage: {
-      text: "Bonjour, est-ce que la voiture est toujours disponible pour ce week-end ?",
-      time: "10:42",
-      isRead: true,
+      text: "Parfait, merci pour ces informations. Je vais procéder à la réservation.",
+      time: "il y a 2 heures",
+      isRead: false,
       isOwn: false,
     },
-    unreadCount: 0,
+    unreadCount: 1,
   },
   {
     id: 2,
     user: {
       id: 102,
       name: "Thomas Dubois",
-      avatar: "/placeholder.svg?height=40&width=40",
+      avatar: "/placeholder.svg",
       isOnline: false,
     },
     lastMessage: {
-      text: "Parfait, je vous confirme la réservation pour lundi prochain.",
-      time: "Hier",
-      isRead: false,
+      text: "D'accord, je vous attendrai au point de rendez-vous convenu.",
+      time: "hier",
+      isRead: true,
       isOwn: true,
     },
-    unreadCount: 2,
+    unreadCount: 0,
   },
   {
     id: 3,
     user: {
       id: 103,
-      name: "Sophie Bernard",
-      avatar: "/placeholder.svg?height=40&width=40",
+      name: "Sophie Martin",
+      avatar: "/placeholder.svg",
       isOnline: true,
     },
     lastMessage: {
-      text: "Merci pour les informations. Je vous contacterai à mon arrivée.",
-      time: "Lun",
+      text: "Est-ce que la voiture a un GPS intégré ?",
+      time: "il y a 3 jours",
       isRead: true,
       isOwn: false,
     },
     unreadCount: 0,
   },
-  {
-    id: 4,
-    user: {
-      id: 104,
-      name: "Lucas Martin",
-      avatar: "/placeholder.svg?height=40&width=40",
-      isOnline: false,
-    },
-    lastMessage: {
-      text: "Est-ce que le GPS est inclus dans la location ?",
-      time: "28/03",
-      isRead: true,
-      isOwn: false,
-    },
-    unreadCount: 0,
-  },
-  {
-    id: 5,
-    user: {
-      id: 105,
-      name: "Julie Moreau",
-      avatar: "/placeholder.svg?height=40&width=40",
-      isOnline: false,
-    },
-    lastMessage: {
-      text: "Voiture rendue. Merci beaucoup, tout s'est très bien passé !",
-      time: "15/03",
-      isRead: true,
-      isOwn: false,
-    },
-    unreadCount: 0,
-  },
-]
+];
 
 // Format the time for display
 const formatMessageTime = (date: Date | string) => {
@@ -173,54 +122,22 @@ export default function ChatList({ onSelectConversation, selectedConversationId,
     queryKey: ['conversations'],
     queryFn: () => messageService.getConversations(),
     enabled: isUsingRealApi && isAuthenticated,
+    refetchInterval: 30000, // Refetch every 30 seconds as a fallback
   })
   
-  // State to hold the conversations data (either mock or real)
+  // Convert API conversations to UI format
   const [conversations, setConversations] = useState<UIConversation[]>(mockConversations)
   
-  // Process API data when it changes
+  // Update conversations when API data changes
   useEffect(() => {
-    if (isUsingRealApi && isAuthenticated) {
-      if (apiConversations.conversations && apiConversations.conversations.length > 0) {
-        // Transform the API conversations to match our UI format
-        const formattedConversations = apiConversations.conversations.map(conv => {
-          // Extract the other user from the conversation
-          const otherUser = conv.otherParticipant || { id: 0, name: "Utilisateur" };
-          
-          // Use a local placeholder instead of external URLs for avatars
-          let avatarUrl = "/placeholder.svg?height=40&width=40";
-          if (otherUser.avatar && !otherUser.avatar.includes('randomuser.me')) {
-            avatarUrl = otherUser.avatar;
-          }
-          
-          return {
-            id: conv.id,
-            user: {
-              id: otherUser.id,
-              name: otherUser.name || "Utilisateur",
-              avatar: avatarUrl,
-              isOnline: false, // We don't have online status from API
-            },
-            lastMessage: {
-              text: conv.lastMessage?.content || "Nouvelle conversation",
-              time: formatMessageTime(conv.lastMessage?.createdAt || conv.createdAt),
-              isRead: !conv.unreadCount || conv.unreadCount === 0,
-              isOwn: conv.lastMessage?.senderId === user?.id,
-            },
-            unreadCount: conv.unreadCount || 0,
-          };
-        });
-        
-        setConversations(formattedConversations);
-      } else {
-        // If no conversations, show empty array
-        setConversations([]);
-      }
-    } else {
-      // In development mode with mock data
-      setConversations(mockConversations);
+    if (isUsingRealApi && apiConversations?.conversations) {
+      const uiConversations = convertToUIConversations(
+        apiConversations.conversations,
+        user?.id || 0
+      );
+      setConversations(uiConversations);
     }
-  }, [apiConversations, isAuthenticated, isUsingRealApi, user?.id]);
+  }, [isUsingRealApi, apiConversations, user?.id]);
 
   // Set up real-time conversation listening with better error handling
   useEffect(() => {
@@ -266,6 +183,7 @@ export default function ChatList({ onSelectConversation, selectedConversationId,
     }
   }, [isUsingRealApi, isAuthenticated, queryClient]);
 
+  // Filter conversations based on search query
   const filteredConversations = conversations.filter((conversation) =>
     conversation.user.name.toLowerCase().includes(searchQuery.toLowerCase()),
   )
@@ -308,25 +226,18 @@ export default function ChatList({ onSelectConversation, selectedConversationId,
           <ul className="divide-y">
             {filteredConversations.map((conversation) => (
               <li
-                key={`conversation-${conversation.id || Math.random().toString(36).substr(2, 9)}`}
+                key={`conversation-${conversation.id}`}
                 className={cn(
                   "hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer",
                   selectedConversationId === conversation.id && "bg-gray-100 dark:bg-gray-800",
                 )}
-                onClick={() => {
-                  console.log("Selected conversation:", conversation);
-                  if (conversation.id) {
-                    onSelectConversation?.(conversation.id as any);
-                  }
-                }}
+                onClick={() => onSelectConversation?.(conversation.id)}
               >
                 <div className="flex items-start p-4">
                   <div className="relative mr-3">
-                    <Avatar className="h-10 w-10 mr-3">
-                      <AvatarImage src={conversation.user.avatar} alt={conversation.user.name} />
-                      <AvatarFallback>
-                        {conversation.user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                      </AvatarFallback>
+                    <Avatar>
+                      <AvatarImage src={conversation.user.avatar || "/placeholder.svg"} alt={conversation.user.name} />
+                      <AvatarFallback>{conversation.user.name.charAt(0)}</AvatarFallback>
                     </Avatar>
                     {conversation.user.isOnline && (
                       <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-900"></span>
@@ -334,25 +245,22 @@ export default function ChatList({ onSelectConversation, selectedConversationId,
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-baseline">
-                      <h3 className="text-sm font-medium truncate">{conversation.user.name}</h3>
+                      <h3 className="font-medium truncate">{conversation.user.name}</h3>
                       <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap ml-2">
                         {conversation.lastMessage.time}
                       </span>
                     </div>
-                    <p
-                      className={cn(
-                        "text-sm truncate",
-                        conversation.lastMessage.isRead
-                          ? "text-gray-500 dark:text-gray-400"
-                          : "font-medium text-gray-900 dark:text-gray-100",
-                      )}
-                    >
-                      {conversation.lastMessage.isOwn && "Vous: "}
-                      {conversation.lastMessage.text}
+                    <p className={cn(
+                      "text-sm truncate",
+                      conversation.unreadCount > 0 && !conversation.lastMessage.isOwn
+                        ? "font-medium text-gray-900 dark:text-gray-100"
+                        : "text-gray-500 dark:text-gray-400",
+                    )}>
+                      {conversation.lastMessage.isOwn && "Vous: "}{conversation.lastMessage.text}
                     </p>
                   </div>
-                  {conversation.unreadCount > 0 && (
-                    <span className="ml-2 bg-red-600 text-white text-xs font-medium rounded-full h-5 min-w-5 flex items-center justify-center px-1">
+                  {conversation.unreadCount > 0 && !conversation.lastMessage.isOwn && (
+                    <span className="ml-2 bg-red-600 text-white text-xs font-medium rounded-full h-5 min-w-[20px] flex items-center justify-center px-1">
                       {conversation.unreadCount}
                     </span>
                   )}

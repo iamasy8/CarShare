@@ -1,44 +1,22 @@
 import ApiClient from "../apiClient";
-import type { User } from '@/lib/auth-context';
+import type { 
+  Message, 
+  Conversation, 
+  ConversationResponse, 
+  ConversationsResponse,
+  BookingMessagesResponse,
+  MessageResponse,
+  StartConversationParams,
+  CarInquiryParams,
+  MarkAsReadParams
+} from "./types";
 
 // Create an instance of the API client
 const apiClient = new ApiClient();
 
-export interface Message {
-  id: number;
-  conversationId: string;
-  senderId: number;
-  receiverId: number;
-  content: string;
-  isRead: boolean;
-  bookingId?: number;
-  createdAt: string | Date;
-  updatedAt: string | Date;
-  sender?: User;
-  receiver?: User;
-}
-
-export interface Conversation {
-  id: string;
-  participantIds: number[];
-  otherParticipant: User;
-  lastMessage?: Message;
-  unreadCount: number;
-  createdAt: string | Date;
-  updatedAt: string | Date;
-}
-
-export interface ConversationResponse {
-  conversation: Conversation;
-  messages: Message[];
-  totalPages: number;
-}
-
-export interface ConversationsResponse {
-  conversations: Conversation[];
-  totalPages: number;
-}
-
+/**
+ * Service for handling message and conversation operations
+ */
 class MessageService {
   /**
    * Get all conversations for the authenticated user
@@ -49,6 +27,7 @@ class MessageService {
 
   /**
    * Get a specific conversation by ID with messages
+   * @param conversationId - The ID of the conversation to fetch
    */
   async getConversation(conversationId: string | number): Promise<ConversationResponse> {
     return apiClient.get<ConversationResponse>(`/messages/conversations/${conversationId}`);
@@ -56,6 +35,8 @@ class MessageService {
 
   /**
    * Send a message in an existing conversation
+   * @param conversationId - The ID of the conversation
+   * @param content - The message content
    */
   async sendMessage(conversationId: string | number, content: string): Promise<Message> {
     return apiClient.post<Message>(`/messages/conversations/${conversationId}/messages`, {
@@ -65,48 +46,48 @@ class MessageService {
   
   /**
    * Start a new conversation with another user
+   * @param userId - The ID of the user to start a conversation with
+   * @param initialMessage - The initial message content
    */
   async startConversation(userId: number, initialMessage: string): Promise<{
     message: string;
     conversation: Conversation;
   }> {
+    const params: StartConversationParams = {
+      userId,
+      message: initialMessage,
+    };
+    
     return apiClient.post<{
       message: string;
       conversation: Conversation;
-    }>('/messages/conversations', {
-      userId,
-      message: initialMessage,
-    });
+    }>('/messages/conversations', params);
   }
 
   /**
    * Mark messages as read in a conversation
+   * @param conversationId - The ID of the conversation
+   * @param messageIds - Array of message IDs to mark as read
    */
   async markMessagesAsRead(conversationId: string | number, messageIds: number[]): Promise<{ message: string }> {
     // Check if messageIds is empty to avoid API errors
     if (!messageIds || messageIds.length === 0) {
-      console.log('No messages to mark as read');
-      return { message: 'No messages to mark as read' };
+      return Promise.resolve({ message: 'No messages to mark as read' });
     }
     
-    console.log(`Marking messages as read for conversation ${conversationId}:`, messageIds);
+    const params: MarkAsReadParams = {
+      messageIds: messageIds,
+    };
     
-    try {
-      // Make sure we're using the correct field name expected by the backend
-      const response = await apiClient.post<{ message: string }>(`/messages/conversations/${conversationId}/read`, {
-        messageIds: messageIds,
-      });
-      console.log('Mark as read response:', response);
-      return response;
-    } catch (error) {
-      console.error('Error marking messages as read:', error);
-      // Return a resolved promise instead of throwing to prevent UI errors
-      return { message: 'Failed to mark messages as read' };
-    }
+    return apiClient.post<{ message: string }>(
+      `/messages/conversations/${conversationId}/read`, 
+      params
+    );
   }
 
   /**
    * Delete a conversation
+   * @param conversationId - The ID of the conversation to delete
    */
   async deleteConversation(conversationId: string | number): Promise<{ message: string }> {
     return apiClient.delete<{ message: string }>(`/messages/conversations/${conversationId}`);
@@ -121,49 +102,53 @@ class MessageService {
 
   /**
    * Send a message about a specific car (creates a conversation if needed)
+   * @param carId - The ID of the car
+   * @param message - The message content
    */
   async sendCarInquiry(carId: number, message: string): Promise<{
     message: string;
     conversation: Conversation;
   }> {
+    const params: CarInquiryParams = {
+      carId,
+      message,
+    };
+    
     return apiClient.post<{
       message: string;
       conversation: Conversation;
-    }>('/messages/car-inquiry', {
-      carId,
-      message,
-    });
+    }>('/messages/car-inquiry', params);
   }
   
   /**
    * Get messages related to a specific booking
+   * @param bookingId - The ID of the booking
    */
-  async getBookingMessages(bookingId: number): Promise<{
-    messages: Message[];
-    booking: any;
-    otherUser: User;
-  }> {
-    return apiClient.get<{
-      messages: Message[];
-      booking: any;
-      otherUser: User;
-    }>(`/messages/bookings/${bookingId}`);
+  async getBookingMessages(bookingId: number): Promise<BookingMessagesResponse> {
+    return apiClient.get<BookingMessagesResponse>(`/messages/bookings/${bookingId}`);
   }
   
   /**
    * Send a message related to a specific booking
+   * @param bookingId - The ID of the booking
+   * @param content - The message content
    */
-  async sendBookingMessage(bookingId: number, content: string): Promise<{
-    message: string;
-    data: Message;
-  }> {
-    return apiClient.post<{
-      message: string;
-      data: Message;
-    }>(`/messages/bookings/${bookingId}`, {
+  async sendBookingMessage(bookingId: number, content: string): Promise<MessageResponse> {
+    return apiClient.post<MessageResponse>(`/messages/bookings/${bookingId}`, {
       content,
     });
   }
 }
 
-export const messageService = new MessageService(); 
+export const messageService = new MessageService();
+
+// Re-export types
+export type { 
+  Message, 
+  Conversation, 
+  ConversationResponse, 
+  ConversationsResponse,
+  BookingMessagesResponse,
+  MessageResponse,
+  UIConversation
+} from './types'; 
