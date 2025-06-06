@@ -26,6 +26,8 @@ export function MessageProvider({ children }: { children: ReactNode }) {
   // Initialize real-time message handler
   useEffect(() => {
     if (isUsingRealApi && isAuthenticated && user?.id) {
+      console.log(`Initializing real-time handler for user ${user.id}`);
+      
       // Get the real-time handler and initialize it
       const realTimeHandler = getRealTimeMessageHandler(queryClient);
       realTimeHandler.initialize(user.id);
@@ -35,6 +37,7 @@ export function MessageProvider({ children }: { children: ReactNode }) {
       
       // Clean up on unmount
       return () => {
+        console.log(`Cleaning up real-time handler for user ${user.id}`);
         realTimeHandler.cleanup();
       };
     }
@@ -42,16 +45,22 @@ export function MessageProvider({ children }: { children: ReactNode }) {
   
   // Set up polling for unread count
   useEffect(() => {
-    if (isUsingRealApi && isAuthenticated) {
+    if (isUsingRealApi && isAuthenticated && user?.id) {
+      console.log(`Setting up unread count polling for user ${user.id}`);
+      
       // Poll every 30 seconds
       const interval = setInterval(refreshUnreadCount, 30000);
-      return () => clearInterval(interval);
+      
+      return () => {
+        console.log(`Cleaning up unread count polling for user ${user.id}`);
+        clearInterval(interval);
+      };
     }
-  }, [isUsingRealApi, isAuthenticated]);
+  }, [isUsingRealApi, isAuthenticated, user?.id]);
   
   // Function to refresh unread count
   const refreshUnreadCount = async () => {
-    if (!isUsingRealApi || !isAuthenticated) return;
+    if (!isUsingRealApi || !isAuthenticated || !user?.id) return;
     
     try {
       const response = await messageService.getUnreadCount();
@@ -68,6 +77,4 @@ export function MessageProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function useMessages() {
-  return useContext(MessageContext);
-} 
+export const useMessages = () => useContext(MessageContext); 

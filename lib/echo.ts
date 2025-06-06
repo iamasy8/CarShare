@@ -146,6 +146,27 @@ export function listenToPrivateChannel(channelName: string, event: string, callb
         echoInstance.private(channelName).stopListening(event);
       }
       
+      // Verify this is the correct user channel
+      if (channelName.startsWith('user.')) {
+        const channelUserId = parseInt(channelName.split('.')[1], 10);
+        let currentUserId: number | null = null;
+        
+        try {
+          const userData = localStorage.getItem('user');
+          if (userData) {
+            const user = JSON.parse(userData);
+            currentUserId = user.id;
+          }
+        } catch (e) {
+          console.error('Error getting user ID from localStorage:', e);
+        }
+        
+        if (currentUserId !== null && channelUserId !== currentUserId) {
+          console.warn(`Attempted to listen to another user's channel: ${channelName}, current user: ${currentUserId}`);
+          return;
+        }
+      }
+      
       // Start listening and mark as active
       console.log(`Listening to channel: ${channelName}, event: ${event}`);
       

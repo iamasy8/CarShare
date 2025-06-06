@@ -15,7 +15,7 @@ import { fr } from "date-fns/locale"
 import { listenToPrivateChannel, stopListeningToPrivateChannel } from "@/lib/echo"
 import { useQueryClient } from "@tanstack/react-query"
 import { NewConversationModal } from "./new-conversation-modal"
-import type { UIConversation } from "@/lib/api/messages/types"
+import type { UIConversation, Conversation } from "@/lib/api/messages/types"
 
 // Mock conversations for testing
 const mockConversations: UIConversation[] = [
@@ -92,6 +92,44 @@ const formatMessageTime = (date: Date | string) => {
   }
 };
 
+/**
+ * Group conversations by user and return only the most recent conversation per user
+ * @param conversations - Array of conversations to group
+ * @param currentUserId - ID of the current user
+ */
+const groupConversationsByUser = (conversations: Conversation[], currentUserId: number): Conversation[] => {
+  // Map to store the most recent conversation for each user
+  const userConversations = new Map<number, Conversation>();
+  
+  conversations.forEach(conversation => {
+    // Find the other participant's ID
+    const otherParticipantId = conversation.otherParticipant?.id;
+    
+    // Skip if we can't identify the other participant
+    if (!otherParticipantId) return;
+    
+    // If we already have a conversation with this user, compare timestamps
+    if (userConversations.has(otherParticipantId)) {
+      const existingConv = userConversations.get(otherParticipantId)!;
+      
+      // Parse dates for comparison
+      const existingDate = new Date(existingConv.updatedAt).getTime();
+      const currentDate = new Date(conversation.updatedAt).getTime();
+      
+      // Replace if current conversation is more recent
+      if (currentDate > existingDate) {
+        userConversations.set(otherParticipantId, conversation);
+      }
+    } else {
+      // First conversation with this user
+      userConversations.set(otherParticipantId, conversation);
+    }
+  });
+  
+  // Convert map values to array
+  return Array.from(userConversations.values());
+};
+
 interface ChatListProps {
   onSelectConversation?: (conversationId: string | number) => void
   selectedConversationId?: string | number
@@ -130,11 +168,28 @@ export default function ChatList({ onSelectConversation, selectedConversationId,
   
   // Update conversations when API data changes
   useEffect(() => {
-    if (isUsingRealApi && apiConversations?.conversations) {
+    if (isUsingRealApi && apiConversations?.conversations && user?.id) {
+      console.log('Processing conversations for user:', user.id);
+      
+      // Filter conversations to ensure they belong to the current user
+      const userConversations = apiConversations.conversations.filter(conversation => {
+        // Check if the current user is a participant
+        return conversation.participantIds.includes(user.id);
+      });
+      
+      console.log(`Filtered ${apiConversations.conversations.length} conversations to ${userConversations.length} for user ${user.id}`);
+      
+      // Group conversations by other user ID
+      const uniqueConversations = groupConversationsByUser(userConversations, user.id);
+      
+      console.log(`Grouped into ${uniqueConversations.length} unique user conversations`);
+      
+      // Convert to UI format
       const uiConversations = convertToUIConversations(
-        apiConversations.conversations,
-        user?.id || 0
+        uniqueConversations,
+        user.id
       );
+      
       setConversations(uiConversations);
     }
   }, [isUsingRealApi, apiConversations, user?.id]);
@@ -251,7 +306,7 @@ export default function ChatList({ onSelectConversation, selectedConversationId,
                       </span>
                     </div>
                     <p className={cn(
-                      "text-sm truncate",
+                        "text-sm truncate",
                       conversation.unreadCount > 0 && !conversation.lastMessage.isOwn
                         ? "font-medium text-gray-900 dark:text-gray-100"
                         : "text-gray-500 dark:text-gray-400",

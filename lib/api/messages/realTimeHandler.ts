@@ -68,6 +68,12 @@ export class RealTimeMessageHandler {
       listenToPrivateChannel(channelName, 'message.sent', (data) => {
         console.log('Received real-time message:', data);
         
+        // Ensure this message is relevant to the current user
+        if (!this.isMessageForCurrentUser(data)) {
+          console.log('Message is not for current user, ignoring');
+          return;
+        }
+        
         // Update the conversation list immediately
         this.queryClient.invalidateQueries({ queryKey: ['conversations'] });
         
@@ -98,6 +104,26 @@ export class RealTimeMessageHandler {
     } catch (error) {
       console.error('Error setting up message.sent listener:', error);
     }
+  }
+
+  /**
+   * Check if a message is relevant to the current user
+   * @param message - The message to check
+   * @returns boolean - True if the message is for the current user
+   */
+  private isMessageForCurrentUser(message: any): boolean {
+    if (!this.userId) return false;
+    
+    // Get sender and receiver IDs from the message
+    const senderId = message.senderId || message.sender_id;
+    const receiverId = message.receiverId || message.receiver_id;
+    
+    // Message is relevant if the current user is either the sender or receiver
+    const isRelevant = senderId === this.userId || receiverId === this.userId;
+    
+    console.log(`Message relevance check: senderId=${senderId}, receiverId=${receiverId}, currentUserId=${this.userId}, isRelevant=${isRelevant}`);
+    
+    return isRelevant;
   }
 
   /**

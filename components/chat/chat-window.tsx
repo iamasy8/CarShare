@@ -34,7 +34,7 @@ import {
 import { useAuth } from "@/lib/auth-context"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import type { Message } from "@/lib/api/messages/types"
+import type { Message, Conversation } from "@/lib/api/messages/types"
 import { listenToPrivateChannel, stopListeningToPrivateChannel } from "@/lib/echo"
 
 // Mock data for testing when API is not available
@@ -63,6 +63,24 @@ const mockConversation = {
   ],
 }
 
+/**
+ * Get all conversations with a specific user
+ * @param conversations - All conversations
+ * @param userId - ID of the current user
+ * @param otherUserId - ID of the other user
+ */
+const getConversationsWithUser = (
+  conversations: Conversation[],
+  userId: number,
+  otherUserId: number
+): Conversation[] => {
+  return conversations.filter(conv => {
+    // Check if this conversation involves both users
+    const participants = conv.participantIds || [];
+    return participants.includes(otherUserId) && participants.includes(userId);
+  });
+};
+
 interface ChatWindowProps {
   conversationId?: number | string
   onBack?: () => void
@@ -82,9 +100,17 @@ export default function ChatWindow({
   const isUsingRealApi = useRealApi()
   const queryClient = useQueryClient()
   const [lastReceivedMessageId, setLastReceivedMessageId] = useState<number | null>(null)
+  const [otherUserId, setOtherUserId] = useState<number | null>(null)
 
   // Track which messages have been marked as read
   const markedAsReadRef = useRef<Record<number, boolean>>({})
+
+  // Fetch all conversations to find those with the same user
+  const { data: allConversations } = useQuery({
+    queryKey: ['conversations'],
+    queryFn: () => messageService.getConversations(),
+    enabled: isUsingRealApi && isAuthenticated && !!conversationId && !isBookingConversation(conversationId),
+  });
 
   // Fetch conversation data from API
   const {
@@ -94,7 +120,7 @@ export default function ChatWindow({
     error,
     refetch
   } = useQuery({
-    queryKey: ['conversation', conversationId],
+    queryKey: ['conversation', conversationId, otherUserId, user?.id],
     queryFn: async () => {
       // Check if the conversation ID is valid
       if (!conversationId) {
@@ -112,6 +138,11 @@ export default function ChatWindow({
         // Fetch booking messages
         const bookingMessages = await messageService.getBookingMessages(bookingId);
         
+        // Set the other user ID
+        if (bookingMessages.otherUser?.id) {
+          setOtherUserId(bookingMessages.otherUser.id);
+        }
+        
         // Convert booking messages to conversation format
         return {
           conversation: {
@@ -127,8 +158,72 @@ export default function ChatWindow({
           totalPages: 1
         };
       } else {
-        // Regular conversation
-        return messageService.getConversation(conversationId);
+        // Get the conversation to find the other user's ID
+        const convData = await messageService.getConversation(conversationId);
+        
+        // Check if we have a valid conversation and other participant
+        if (!convData?.conversation?.otherParticipant?.id || !user?.id) {
+          return convData; // Return original data if we can't get user IDs
+        }
+        
+        // Get the other user's ID
+        const otherParticipantId = convData.conversation.otherParticipant.id;
+        setOtherUserId(otherParticipantId);
+        
+        try {
+          // Get all conversations for the current user
+          const allConversations = await messageService.getConversations();
+          
+          // Filter conversations with the same other user
+          const conversationsWithUser = getConversationsWithUser(
+            allConversations.conversations,
+            user.id,
+            otherParticipantId
+          );
+          
+          console.log(`Found ${conversationsWithUser.length} conversations with user ${otherParticipantId}`);
+          
+          // If we only have one conversation, return the original data
+          if (conversationsWithUser.length <= 1) {
+            return convData;
+          }
+          
+          // Get all messages from all conversations with this user
+          const allMessages: Message[] = [];
+          const conversationIds = conversationsWithUser.map(conv => conv.id);
+          
+          // Fetch messages from each conversation
+          for (const convId of conversationIds) {
+            try {
+              const convMessages = await messageService.getConversation(convId);
+              if (convMessages?.messages?.length) {
+                allMessages.push(...convMessages.messages);
+              }
+            } catch (error) {
+              console.error(`Error fetching messages for conversation ${convId}:`, error);
+            }
+          }
+          
+          // Sort messages by date
+          allMessages.sort((a, b) => {
+            const dateA = new Date(a.createdAt).getTime();
+            const dateB = new Date(b.createdAt).getTime();
+            return dateA - dateB;
+          });
+          
+          console.log(`Combined ${allMessages.length} messages from all conversations with user ${otherParticipantId}`);
+          
+          // Return combined data
+          return {
+            conversation: convData.conversation,
+            messages: allMessages,
+            totalPages: convData.totalPages
+          };
+        } catch (error) {
+          console.error('Error combining messages:', error);
+          // Return original data if there was an error
+          return convData;
+        }
       }
     },
     enabled: isUsingRealApi && isAuthenticated && !!conversationId,
@@ -163,54 +258,35 @@ export default function ChatWindow({
         listenToPrivateChannel(channelName, 'message.sent', (data) => {
           console.log('Chat window received message.sent event:', data);
           
-          // Only update if the message belongs to the current conversation
-          const msgConversationId = data.conversationId || data.conversation_id;
+          // Check if this message involves the current other user
+          const senderId = data.senderId || data.sender_id;
+          const receiverId = data.receiverId || data.receiver_id;
           
-          if (msgConversationId == conversationId) {
-            console.log('Updating current conversation with new message');
+          // If otherUserId is set, check if this message involves that user
+          if (otherUserId) {
+            const isMessageWithCurrentUser = senderId === otherUserId || receiverId === otherUserId;
             
-            // Set the last received message ID to trigger re-render
-            setLastReceivedMessageId(data.id);
-            
-            // Get the current conversation data
-            const currentData = queryClient.getQueryData(['conversation', conversationId]);
-            
-            if (currentData) {
-              // Check if the message is already in the conversation
-              const messageExists = (currentData as any).messages.some(
-                (msg: Message) => msg.id === data.id
-              );
+            if (isMessageWithCurrentUser) {
+              console.log('Updating current conversation with new message from/to current user');
               
-              if (!messageExists) {
-                // Create a properly formatted message from the event data
-                const newMessage: Message = {
-                  id: data.id,
-                  conversationId: data.conversationId || data.conversation_id,
-                  senderId: data.senderId || data.sender_id,
-                  receiverId: data.receiverId || data.receiver_id,
-                  content: data.content,
-                  isRead: data.isRead || data.is_read || false,
-                  bookingId: data.bookingId || data.booking_id,
-                  createdAt: new Date(data.createdAt || data.created_at),
-                  updatedAt: new Date(data.updatedAt || data.updated_at),
-                  sender: data.sender,
-                  receiver: data.receiver
-                };
-                
-                // Add the new message to the conversation
-                const updatedData = {
-                  ...(currentData as any),
-                  messages: [...(currentData as any).messages, newMessage],
-                };
-                
-                // Update the cache
-                queryClient.setQueryData(['conversation', conversationId], updatedData);
-                
-                // Force a refetch to ensure the UI updates
-                refetch();
-              }
-            } else {
-              // If we don't have the conversation data yet, refetch it
+              // Set the last received message ID to trigger re-render
+              setLastReceivedMessageId(data.id);
+              
+              // Force a refetch to get all messages
+              refetch();
+            }
+          } else {
+            // If otherUserId is not set yet, check if this message is for the current conversation
+            const msgConversationId = data.conversationId || data.conversation_id;
+            const isForCurrentConversation = msgConversationId == conversationId;
+            
+            if (isForCurrentConversation) {
+              console.log('Updating current conversation with new message');
+              
+              // Set the last received message ID to trigger re-render
+              setLastReceivedMessageId(data.id);
+              
+              // Force a refetch
               refetch();
             }
           }
@@ -221,81 +297,61 @@ export default function ChatWindow({
           stopListeningToPrivateChannel(channelName, 'message.sent');
         };
       } catch (error) {
-        console.error('Error setting up real-time message listener:', error);
+        console.error('Error setting up real-time listener:', error);
       }
     }
-  }, [isUsingRealApi, isAuthenticated, user?.id, conversationId, queryClient, refetch]);
+  }, [isUsingRealApi, isAuthenticated, user?.id, conversationId, otherUserId, refetch, queryClient]);
 
-  // Mutation for sending a message
+  // Mutation for sending a new message
   const sendMessageMutation = useMutation({
-    mutationFn: async ({ conversationId, content }: { conversationId: number | string, content: string }) => {
+    mutationFn: async ({ content, conversationId }: { content: string, conversationId: string | number }) => {
       if (isBookingConversation(conversationId)) {
+        // Extract the booking ID
         const bookingId = extractBookingId(conversationId);
         if (!bookingId) {
           throw new Error('Invalid booking conversation ID');
         }
         
-        // Send message to booking conversation
+        // Send the message for a booking
         return messageService.sendBookingMessage(bookingId, content);
       } else {
-        // Regular conversation
+        // Send a regular message
         return messageService.sendMessage(conversationId, content);
       }
     },
     onSuccess: (data) => {
-      // Clear the message input
+      // Clear the input
       setNewMessage("");
       
-      // Add the new message to the local state for better UX
-      if (conversationData && data) {
-        // Extract the message object from the response
-        let messageData: any = 'data' in data ? data.data : data;
-        
-        // Create a properly formatted message
-        const createdAt = messageData.createdAt || messageData.created_at || new Date();
-        const createdAtDate = new Date(createdAt);
-        
-        const newMessage: Message = {
-          id: messageData.id,
-          conversationId: messageData.conversationId || messageData.conversation_id,
-          senderId: messageData.senderId || messageData.sender_id || user?.id || 0,
-          receiverId: messageData.receiverId || messageData.receiver_id,
-          content: messageData.content,
-          isRead: false,
-          bookingId: messageData.bookingId || messageData.booking_id,
-          createdAt: createdAtDate,
-          updatedAt: messageData.updatedAt || messageData.updated_at || new Date(),
-          sender: messageData.sender || { 
-            id: user?.id, 
-            name: user?.name, 
-            avatar: user?.avatar 
-          },
-          receiver: messageData.receiver
-        };
-        
-        // Update the conversation data with the new message
-        const updatedMessages = [...conversationData.messages, newMessage];
-        
-        // Update the cache without triggering a refetch
-        queryClient.setQueryData(['conversation', conversationId], {
-          ...conversationData,
-          messages: updatedMessages,
-        });
-      }
-      
-      // Only invalidate the conversations list
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
-      
-      // Delay the conversation refresh to avoid UI flickering
+      // Scroll to bottom
       setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['conversation', conversationId] });
-      }, 1000);
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+      
+      // Invalidate and refetch conversation
+      queryClient.invalidateQueries({ queryKey: ['conversation', conversationId, otherUserId, user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
     },
     onError: (error) => {
       console.error('Error sending message:', error);
-      toast.error("Impossible d'envoyer le message. Veuillez réessayer.");
+      toast.error("Échec de l'envoi du message. Veuillez réessayer.");
     }
-  })
+  });
+
+  // Handle sending a new message
+  const handleSendMessage = () => {
+    if (!newMessage.trim() || !conversationId) return;
+    
+    try {
+      sendMessageMutation.mutate({ 
+        content: newMessage.trim(), 
+        conversationId: conversationId 
+      });
+    } catch (error) {
+      console.error('Error in handleSendMessage:', error);
+      toast.error("Échec de l'envoi du message. Veuillez réessayer.");
+    }
+  };
 
   // Scroll to bottom when messages change or when a new message is received
   useEffect(() => {
@@ -373,7 +429,7 @@ export default function ChatWindow({
             {error instanceof Error ? error.message : "Une erreur s'est produite lors du chargement de la conversation."}
           </p>
           <Button 
-            onClick={() => queryClient.invalidateQueries({ queryKey: ['conversation', conversationId] })}
+            onClick={() => queryClient.invalidateQueries({ queryKey: ['conversation', conversationId, otherUserId, user?.id] })}
             className="bg-red-600 hover:bg-red-700"
           >
             Réessayer
@@ -400,15 +456,6 @@ export default function ChatWindow({
       name: conversationData.conversation.otherParticipant?.name || "Utilisateur",
       avatar: avatarUrl,
       isOnline: false
-    }
-  }
-
-  const handleSendMessage = () => {
-    if (newMessage.trim() && conversationId) {
-      sendMessageMutation.mutate({ 
-        conversationId, 
-        content: newMessage.trim() 
-      });
     }
   }
 

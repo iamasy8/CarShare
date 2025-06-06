@@ -22,7 +22,21 @@ class MessageService {
    * Get all conversations for the authenticated user
    */
   async getConversations(): Promise<ConversationsResponse> {
-    return apiClient.get<ConversationsResponse>('/messages/conversations');
+    // Get the current user's ID from localStorage if available
+    let userId = null;
+    try {
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        const user = JSON.parse(userData);
+        userId = user.id;
+      }
+    } catch (e) {
+      console.error('Error getting user ID from localStorage:', e);
+    }
+    
+    // Add the user ID as a query parameter for better filtering
+    const queryParams = userId ? `?userId=${userId}` : '';
+    return apiClient.get<ConversationsResponse>(`/messages/conversations${queryParams}`);
   }
 
   /**
@@ -140,7 +154,7 @@ class MessageService {
   }
 }
 
-export const messageService = new MessageService();
+export const messageService = new MessageService(); 
 
 // Re-export types
 export type { 
