@@ -61,6 +61,7 @@ interface AuthContextType {
     updateSubscription: boolean
   }
   isLoading: boolean
+  isAuthLoading: boolean
   error: string | null
   login: (email: string, password: string) => Promise<User>
   register: (userData: RegisterUserData, role: UserRole) => Promise<User>
@@ -90,6 +91,7 @@ const AuthContext = createContext<AuthContextType>({
     updateSubscription: false
   },
   isLoading: false,
+  isAuthLoading: true,
   error: null,
   login: async () => ({ id: 0, name: "", email: "", role: "client", avatar: "" }),
   register: async () => ({ id: 0, name: "", email: "", role: "client", avatar: "" }),
@@ -164,6 +166,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     updateSubscription: false
   })
   const [error, setError] = useState<string | null>(null)
+  const [isAuthLoading, setIsAuthLoading] = useState(true)
   const router = useRouter()
 
   // Check if user is authenticated on mount
@@ -171,6 +174,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const checkAuth = async () => {
       try {
         setStatus("loading")
+        setIsAuthLoading(true)
         
         // Check if we have a token stored
         if (authService.hasToken()) {
@@ -198,22 +202,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               setStatus("authenticated")
             } else {
               // If no user data is returned, set status to unauthenticated
+              setUser(null)
               setStatus("unauthenticated")
             }
           } catch (err) {
             console.error("Failed to validate authentication:", err)
             // Clear invalid token
             authService.logout()
+            setUser(null)
             setStatus("unauthenticated")
           }
         } else {
           // No token found
+          setUser(null)
           setStatus("unauthenticated")
         }
       } catch (err) {
         console.error("Auth check failed:", err)
+        setUser(null)
         setStatus("unauthenticated")
         setError("Failed to verify authentication status")
+      } finally {
+        setIsAuthLoading(false)
       }
     }
     
@@ -454,27 +464,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Context value to expose to consumers
   const value = {
-    user,
-    status,
-    loading,
-    isLoading: status === "loading",
-    error,
-    login,
-    register,
-    logout,
-    updateSubscription,
-    clearError,
+        user,
+        status,
+        loading,
+    isLoading: loading.login || loading.register || loading.updateSubscription,
+        isAuthLoading,
+        error,
+        login,
+        register,
+        logout,
+        updateSubscription,
+        clearError,
     isAuthenticated: status === "authenticated" && user !== null,
     isAdmin: status === "authenticated" && (user?.role === "admin" || user?.role === "superadmin"),
     isSuperAdmin: status === "authenticated" && user?.role === "superadmin",
     isOwner: status === "authenticated" && user?.role === "owner",
     isClient: status === "authenticated" && user?.role === "client",
-    hasPermission,
-    logAdminAction,
-    extendSession,
-    checkSessionExpiry,
-    updateProfile,
-    setMockUser
+        hasPermission,
+        logAdminAction,
+        extendSession,
+        checkSessionExpiry,
+        updateProfile,
+        setMockUser
   }
 
   return (

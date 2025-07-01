@@ -13,7 +13,7 @@ import { useAuth } from "@/lib/auth-context"
 
 export function ChatSidebar() {
   const { user: currentUser } = useAuth()
-  const { conversations, selectConversation, currentConversation } = useMessages()
+  const { conversations, selectConversation, currentConversation, isLoading, error } = useMessages()
   const [searchQuery, setSearchQuery] = useState("")
   const [isNewConversationOpen, setIsNewConversationOpen] = useState(false)
 
@@ -115,7 +115,13 @@ export function ChatSidebar() {
       </div>
 
       <div className="overflow-y-auto flex-1">
-        {filteredConversations.length === 0 ? (
+        {isLoading && (
+          <div className="p-4 text-center text-gray-500">Chargement des conversations...</div>
+        )}
+        {error && (
+          <div className="p-4 text-center text-red-500">{error}</div>
+        )}
+        {filteredConversations.length === 0 && !isLoading && !error ? (
           <div className="flex flex-col items-center justify-center h-full p-4 text-center text-gray-500">
             <p>Aucune conversation trouvée</p>
             <Button 

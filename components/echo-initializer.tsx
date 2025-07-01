@@ -23,7 +23,7 @@ export function EchoInitializer() {
     }
     return ""
   }
-
+  
   useEffect(() => {
     if (!user) return
     

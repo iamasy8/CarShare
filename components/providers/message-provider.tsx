@@ -10,6 +10,7 @@ interface MessageContextType {
   currentConversation: Conversation | null
   messages: Message[]
   isLoading: boolean
+  error: string | null
   loadConversations: () => Promise<void>
   selectConversation: (id: number) => Promise<void>
   sendMessage: (conversationId: number, body: string, image?: File, file?: File) => Promise<void>
@@ -27,12 +28,13 @@ interface MessageContextType {
 const MessageContext = createContext<MessageContextType | undefined>(undefined)
 
 export const MessageProvider = ({ children }: { children: React.ReactNode }) => {
-  const { user } = useAuth()
+  const { user, isAuthLoading } = useAuth()
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [totalUnreadCount, setTotalUnreadCount] = useState(0)
+  const [error, setError] = useState<string | null>(null)
 
   // Load all conversations for the user
   const loadConversations = useCallback(async () => {
@@ -40,6 +42,7 @@ export const MessageProvider = ({ children }: { children: React.ReactNode }) => 
 
     try {
       setIsLoading(true)
+      setError(null)
       const token = localStorage.getItem('auth_token')
       const { data } = await axios.get("/api/conversations", {
         headers: {
@@ -56,6 +59,7 @@ export const MessageProvider = ({ children }: { children: React.ReactNode }) => 
       )
       setTotalUnreadCount(unreadTotal)
     } catch (error) {
+      setError("Impossible de charger les conversations.")
       console.error("Error loading conversations:", error)
     } finally {
       setIsLoading(false)
@@ -413,14 +417,14 @@ export const MessageProvider = ({ children }: { children: React.ReactNode }) => 
 
   // Load conversations when user logs in
   useEffect(() => {
-    if (user) {
+    if (!isAuthLoading && user) {
       loadConversations()
-    } else {
+    } else if (!isAuthLoading && !user) {
       setConversations([])
       setCurrentConversation(null)
       setMessages([])
     }
-  }, [user, loadConversations])
+  }, [user, isAuthLoading])
 
   // Listen for new messages via Laravel Echo
   useEffect(() => {
@@ -479,9 +483,6 @@ export const MessageProvider = ({ children }: { children: React.ReactNode }) => 
   useEffect(() => {
     if (!user) return
 
-    // Initialize Echo when user is available
-    loadConversations()
-
     // Listen for new messages in conversations the user is part of
     const setupEchoListeners = () => {
       if (window.Echo) {
@@ -494,7 +495,6 @@ export const MessageProvider = ({ children }: { children: React.ReactNode }) => 
                 if (currentConversation?.id === e.message.conversation_id) {
                   setMessages(prev => [...prev, e.message])
                 }
-                
                 // Update the conversation in the list
                 setConversations(prev =>
                   prev.map(conv =>
@@ -508,7 +508,6 @@ export const MessageProvider = ({ children }: { children: React.ReactNode }) => 
                       : conv
                   )
                 )
-                
                 // Update total unread count
                 setTotalUnreadCount(prev => prev + 1)
               }
@@ -528,13 +527,14 @@ export const MessageProvider = ({ children }: { children: React.ReactNode }) => 
         })
       }
     }
-  }, [user, conversations, currentConversation, loadConversations])
+  }, [user, conversations, currentConversation])
 
   const value = {
     conversations,
     currentConversation,
     messages,
     isLoading,
+    error,
     loadConversations,
     selectConversation,
     sendMessage,
